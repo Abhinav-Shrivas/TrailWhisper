@@ -1,0 +1,1029 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Camera,
+  Volume2,
+  VolumeX,
+  Moon,
+  Compass,
+  MapPin,
+  Sparkles,
+  Download,
+  BookOpen,
+  Leaf,
+  CheckCircle2,
+  HelpCircle,
+  X,
+  Play,
+  RotateCcw,
+  Wifi,
+  WifiOff,
+  Zap,
+  Info,
+  Radio,
+  Clock,
+  ShieldCheck,
+  AlertTriangle,
+  Upload,
+  Cpu
+} from 'lucide-react';
+import confetti from 'canvas-confetti';
+
+import { TRAIL_TAXONOMY, PRESET_SPECIMENS } from './data/trailTaxonomy';
+import { OUTDOOR_QUESTS } from './data/quests';
+import { edgeAIService } from './services/edgeAI';
+import { speechService } from './services/speechService';
+import { journalStorage } from './services/journalStorage';
+
+export default function App() {
+  // Navigation & Modes
+  const [activeTab, setActiveTab] = useState('viewfinder'); // 'viewfinder' | 'quests' | 'journal'
+  const [trailSleepActive, setTrailSleepActive] = useState(false);
+  const [isSimulatedOffline, setIsSimulatedOffline] = useState(false);
+  const [isDeviceOnline, setIsDeviceOnline] = useState(navigator.onLine);
+  const [showWhyOpenModal, setShowWhyOpenModal] = useState(false);
+  const [showAILabModal, setShowAILabModal] = useState(false);
+  const [benchmarkData, setBenchmarkData] = useState(null);
+  const [isBenchmarking, setIsBenchmarking] = useState(false);
+
+  // Viewfinder & Specimen State
+  const [cameraActive, setCameraActive] = useState(false);
+  const [currentImage, setCurrentImage] = useState(PRESET_SPECIMENS[0].previewUrl);
+  const [selectedPresetId, setSelectedPresetId] = useState(PRESET_SPECIMENS[0].id);
+  const [isInferring, setIsInferring] = useState(false);
+  const [detectionResult, setDetectionResult] = useState(null);
+
+  // Audio & Anti-Screen Timers
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [autoSleepEnabled, setAutoSleepEnabled] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [sleepCountdown, setSleepCountdown] = useState(null);
+  const countdownIntervalRef = useRef(null);
+
+  // Outdoor Experience Stats & Data
+  const [observations, setObservations] = useState([]);
+  const [completedQuests, setCompletedQuests] = useState([]);
+  const [outsideMinutes, setOutsideMinutes] = useState(14);
+  const [trailCoordinates, setTrailCoordinates] = useState({ lat: 37.7694, lon: -122.4862, alt: 45 });
+  const [engineStatus, setEngineStatus] = useState(edgeAIService.getEngineStatus());
+
+  // Refs
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // Listen to browser network changes
+  useEffect(() => {
+    const handleOnline = () => setIsDeviceOnline(true);
+    const handleOffline = () => setIsDeviceOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Load initial observations
+    setObservations(journalStorage.getObservations());
+
+    // Fetch GPS coordinates
+    journalStorage.getTrailCoordinates().then(setTrailCoordinates);
+
+    // Outside timekeeper
+    const timer = setInterval(() => {
+      setOutsideMinutes(m => m + 1);
+    }, 60000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(timer);
+    };
+  }, []);
+
+  // Run initial identification for first preset specimen
+  useEffect(() => {
+    runDetection(PRESET_SPECIMENS[0].previewUrl, PRESET_SPECIMENS[0].taxonomyId, false);
+  }, []);
+
+  // Stop camera when unmounting or switching tabs
+  useEffect(() => {
+    if (activeTab !== 'viewfinder' && cameraActive) {
+      stopCamera();
+    }
+  }, [activeTab]);
+
+  // Clean up speech on unmount
+  useEffect(() => {
+    return () => speechService.stop();
+  }, []);
+
+  // Handle live camera toggle
+  const toggleCamera = async () => {
+    if (cameraActive) {
+      stopCamera();
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 } },
+          audio: false
+        });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          setCameraActive(true);
+        }
+      } catch (err) {
+        alert("Camera access denied or unavailable. You can use preset trail specimens or upload outdoor photos!");
+      }
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  };
+
+  // Capture snapshot from live camera feed
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg');
+
+    setCurrentImage(dataUrl);
+    stopCamera();
+    runDetection(dataUrl, null, true);
+  };
+
+  // Handle local image file upload
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const url = event.target.result;
+        setCurrentImage(url);
+        if (cameraActive) stopCamera();
+        runDetection(url, null, true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Select preset specimen
+  const handleSelectPreset = (preset) => {
+    setSelectedPresetId(preset.id);
+    setCurrentImage(preset.previewUrl);
+    if (cameraActive) stopCamera();
+    runDetection(preset.previewUrl, preset.taxonomyId, true);
+  };
+
+  // Core Edge AI Identification function
+  const runDetection = async (imgSource, taxonomyHintId = null, shouldSpeak = true) => {
+    setIsInferring(true);
+    speechService.stop();
+    clearSleepCountdown();
+
+    try {
+      const result = await edgeAIService.identifySpecimen(imgSource, taxonomyHintId);
+      setDetectionResult(result);
+      speechService.triggerHaptic([60, 50, 90]);
+
+      if (shouldSpeak && soundEnabled) {
+        speakResult(result.species.naturalistWhisper);
+      }
+
+      // Initiate 6-second auto-sleep countdown (Anti-Screen mechanism)
+      startSleepCountdown(6);
+    } catch (err) {
+      console.error("Detection error:", err);
+    } finally {
+      setIsInferring(false);
+    }
+  };
+
+  // Naturalist voice narration
+  const speakResult = (text) => {
+    setIsSpeaking(true);
+    speechService.speak(text, {
+      onEnd: () => setIsSpeaking(false),
+      onError: () => setIsSpeaking(false)
+    });
+  };
+
+  // Anti-Screen Sleep Countdown
+  const startSleepCountdown = (seconds) => {
+    clearSleepCountdown();
+    if (!autoSleepEnabled) return;
+    setSleepCountdown(seconds);
+
+    countdownIntervalRef.current = setInterval(() => {
+      setSleepCountdown((prev) => {
+        if (prev <= 1) {
+          clearSleepCountdown();
+          enterTrailSleep();
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const clearSleepCountdown = () => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setSleepCountdown(null);
+  };
+
+  const enterTrailSleep = () => {
+    clearSleepCountdown();
+    setTrailSleepActive(true);
+    speechService.triggerHaptic([100]);
+  };
+
+  const wakeFromTrailSleep = () => {
+    setTrailSleepActive(false);
+    speechService.triggerHaptic([50, 50]);
+  };
+
+  // Run live on-device AI benchmark
+  const runAIBenchmark = async () => {
+    setIsBenchmarking(true);
+    try {
+      const data = await edgeAIService.benchmarkModel(currentImage);
+      setBenchmarkData(data);
+    } catch (err) {
+      console.error("Benchmark error:", err);
+    } finally {
+      setIsBenchmarking(false);
+    }
+  };
+
+  // Log sighting to offline field journal
+  const handleLogObservation = () => {
+    if (!detectionResult) return;
+    const newEntry = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      speciesName: detectionResult.species.commonName,
+      scientificName: detectionResult.species.scientificName,
+      category: detectionResult.species.category,
+      confidence: detectionResult.confidence,
+      sensoryNote: detectionResult.species.sensoryPrompt,
+      coordinates: trailCoordinates,
+      photoUrl: currentImage
+    };
+
+    const updated = journalStorage.saveObservation(newEntry);
+    setObservations(updated);
+    speechService.triggerHaptic([80, 80, 120]);
+    confetti({
+      particleCount: 45,
+      spread: 60,
+      origin: { y: 0.8 },
+      colors: ['#22c55e', '#4ade80', '#fbbf24']
+    });
+  };
+
+  // Toggle Quest Completion
+  const toggleQuestComplete = (questId) => {
+    if (completedQuests.includes(questId)) {
+      setCompletedQuests(completedQuests.filter(id => id !== questId));
+    } else {
+      setCompletedQuests([...completedQuests, questId]);
+      speechService.triggerHaptic([100, 50, 100]);
+      confetti({
+        particleCount: 60,
+        spread: 70,
+        origin: { y: 0.7 },
+        colors: ['#38bdf8', '#22c55e', '#a855f7']
+      });
+    }
+  };
+
+  const effectiveOffline = isSimulatedOffline || !isDeviceOnline;
+
+  return (
+    <div className="app-shell">
+      {/* Hidden processing canvas */}
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+      {/* TOP NAVIGATION BAR */}
+      <header className="top-navbar" id="main-header">
+        <div className="brand-section">
+          <div className="brand-icon-wrapper">
+            <Leaf size={22} />
+          </div>
+          <div>
+            <h1 className="brand-title">
+              TrailWhisper
+            </h1>
+            <p className="brand-subtitle">
+              {engineStatus.hasWebGPU ? "WebGPU Edge AI" : "Local WASM AI"} • 100% Offline
+            </p>
+          </div>
+        </div>
+
+        <div className="nav-actions">
+          {/* Airplane / Offline Trail Simulator Toggle */}
+          <button
+            id="offline-trail-toggle"
+            className={`offline-pill ${effectiveOffline ? 'simulated-offline' : ''}`}
+            onClick={() => setIsSimulatedOffline(!isSimulatedOffline)}
+            title="Toggle Simulated Trail Airplane Mode (Proves 100% On-Device Zero Wire Latency)"
+          >
+            <span className="status-dot"></span>
+            {effectiveOffline ? (
+              <>
+                <WifiOff size={12} />
+                <span>TRAIL OFFLINE</span>
+              </>
+            ) : (
+              <>
+                <Wifi size={12} />
+                <span>EDGE LOCAL</span>
+              </>
+            )}
+          </button>
+
+          {/* Sound Mute Toggle */}
+          <button
+            id="audio-toggle-btn"
+            className="icon-btn"
+            onClick={() => {
+              setSoundEnabled(!soundEnabled);
+              if (soundEnabled) speechService.stop();
+            }}
+            title={soundEnabled ? "Mute Naturalist Audio" : "Unmute Audio Whisper"}
+          >
+            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
+
+          {/* AI Model Lab & Benchmark */}
+          <button
+            id="ai-lab-btn"
+            className="icon-btn"
+            onClick={() => {
+              setShowAILabModal(true);
+              if (!benchmarkData) runAIBenchmark();
+            }}
+            title="Inspect Open-Source AI Architecture & Benchmark"
+          >
+            <Cpu size={18} color="#4ade80" />
+          </button>
+
+          {/* Why Open Source Manifesto */}
+          <button
+            id="why-open-btn"
+            className="icon-btn"
+            onClick={() => setShowWhyOpenModal(true)}
+            title="Why Open-Source AI Matters"
+          >
+            <HelpCircle size={18} />
+          </button>
+        </div>
+      </header>
+
+      {/* TAB NAVIGATION BAR */}
+      <nav className="tab-bar" id="navigation-tabs">
+        <button
+          id="tab-viewfinder"
+          className={`tab-btn ${activeTab === 'viewfinder' ? 'active' : ''}`}
+          onClick={() => setActiveTab('viewfinder')}
+        >
+          <Camera size={16} />
+          <span>Trail Scout</span>
+        </button>
+        <button
+          id="tab-quests"
+          className={`tab-btn ${activeTab === 'quests' ? 'active' : ''}`}
+          onClick={() => setActiveTab('quests')}
+        >
+          <Sparkles size={16} />
+          <span>Sensory Quests ({completedQuests.length}/{OUTDOOR_QUESTS.length})</span>
+        </button>
+        <button
+          id="tab-journal"
+          className={`tab-btn ${activeTab === 'journal' ? 'active' : ''}`}
+          onClick={() => setActiveTab('journal')}
+        >
+          <BookOpen size={16} />
+          <span>Field Journal ({observations.length})</span>
+        </button>
+      </nav>
+
+      {/* MAIN VIEWPORT */}
+      <main className="main-viewport">
+        {/* Anti-Screen "Put Down Your Phone" Prompt Banner */}
+        <section className="anti-screen-banner" id="anti-screen-status">
+          <div className="anti-screen-text">
+            <strong>Screen Minimizer Active</strong>
+            Hear the whisper, feel the nature. Screen designed to sleep in seconds.
+            {!autoSleepEnabled && (
+              <span style={{ color: 'var(--accent-amber)', display: 'block', fontSize: '0.74rem', marginTop: '2px' }}>
+                (Auto-Sleep Paused for Review)
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {!autoSleepEnabled && (
+              <button
+                className="sleep-now-btn"
+                style={{ borderColor: 'rgba(245, 158, 11, 0.6)', color: 'var(--accent-amber)', background: 'rgba(245, 158, 11, 0.1)' }}
+                onClick={() => setAutoSleepEnabled(true)}
+              >
+                Resume Auto-Sleep
+              </button>
+            )}
+            <button
+              id="sleep-now-trigger"
+              className="sleep-now-btn"
+              onClick={enterTrailSleep}
+            >
+              <Moon size={14} />
+              <span>Trail Sleep</span>
+            </button>
+          </div>
+        </section>
+
+        {/* TAB 1: VIEWFINDER & RECOGNITION */}
+        {activeTab === 'viewfinder' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Viewfinder Card */}
+            <div className="viewfinder-card">
+              <div className="viewfinder-media">
+                {cameraActive ? (
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="video-stream"
+                  />
+                ) : (
+                  <img
+                    src={currentImage}
+                    alt="Outdoor Trail Specimen"
+                    className="preview-image"
+                  />
+                )}
+
+                {/* HUD Elements */}
+                <div className="hud-overlay">
+                  <div className="hud-top">
+                    <div className="hud-badge">
+                      <Radio size={12} color="#4ade80" />
+                      <span>{cameraActive ? "LIVE SENSOR" : "SPECIMEN CAPTURE"}</span>
+                    </div>
+                    <div className="hud-badge">
+                      <MapPin size={12} />
+                      <span>{trailCoordinates.lat.toFixed(3)}°N, {Math.abs(trailCoordinates.lon).toFixed(3)}°W</span>
+                    </div>
+                  </div>
+
+                  {/* Laser Scanning crosshairs */}
+                  <div className="hud-crosshairs">
+                    {isInferring && <div className="laser-scanner"></div>}
+                  </div>
+
+                  <div className="hud-badge" style={{ alignSelf: 'flex-start' }}>
+                    <Zap size={12} color="#f59e0b" />
+                    <span>0KB NETWORK WIRE • LOCAL WEIGHTS</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Viewfinder Controls & Capture Bar */}
+              <div className="viewfinder-controls">
+                <div className="shutter-row">
+                  {/* Camera Flip / Live Toggle */}
+                  <button
+                    id="toggle-live-camera"
+                    className="sub-action-btn"
+                    onClick={toggleCamera}
+                  >
+                    <div className="sub-action-icon">
+                      <Camera size={20} />
+                    </div>
+                    <span>{cameraActive ? "Close Cam" : "Live Cam"}</span>
+                  </button>
+
+                  {/* Main Shutter Button */}
+                  <button
+                    id="shutter-capture-btn"
+                    className="shutter-button"
+                    onClick={cameraActive ? capturePhoto : () => runDetection(currentImage, null, true)}
+                    disabled={isInferring}
+                    title="Capture & Run Edge AI"
+                  >
+                    {isInferring ? (
+                      <RotateCcw className="spin-animation" size={26} />
+                    ) : (
+                      <Zap size={28} />
+                    )}
+                  </button>
+
+                  {/* Custom Image Upload */}
+                  <button
+                    id="upload-trail-photo"
+                    className="sub-action-btn"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className="sub-action-icon">
+                      <Upload size={20} />
+                    </div>
+                    <span>Upload</span>
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleFileUpload}
+                  />
+                </div>
+
+                {/* Test Trail Presets Picker */}
+                <div className="presets-section">
+                  <div className="presets-label">
+                    <span>Trail Specimens (Test Without Leaving Desk)</span>
+                    <span>100% Edge Tested</span>
+                  </div>
+                  <div className="presets-scroll">
+                    {PRESET_SPECIMENS.map((specimen) => (
+                      <button
+                        key={specimen.id}
+                        id={`preset-${specimen.id}`}
+                        className={`preset-chip ${selectedPresetId === specimen.id ? 'active' : ''}`}
+                        onClick={() => handleSelectPreset(specimen)}
+                      >
+                        <Leaf size={14} color="#4ade80" />
+                        <span>{specimen.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* DETECTION RESULT CARD */}
+            {detectionResult && (
+              <div className="result-card" id="detection-result-card">
+                <div className="result-header">
+                  <div>
+                    <h2 className="result-species">
+                      {detectionResult.species.commonName}
+                    </h2>
+                    <p className="result-scientific">
+                      {detectionResult.species.scientificName} • {detectionResult.species.categoryLabel}
+                    </p>
+                  </div>
+
+                  <span className={`result-safety-badge safety-${detectionResult.species.safety}`}>
+                    {detectionResult.species.safetyLabel}
+                  </span>
+                </div>
+
+                {/* Naturalist Voice Whisper Box */}
+                <div className="audio-whisper-box">
+                  <button
+                    id="replay-whisper-btn"
+                    className="play-voice-btn"
+                    onClick={() => speakResult(detectionResult.species.naturalistWhisper)}
+                    title="Play Naturalist Audio Whisper"
+                  >
+                    {isSpeaking ? <RotateCcw size={20} /> : <Play size={20} />}
+                  </button>
+
+                  <div className="audio-script-content">
+                    <p>{detectionResult.species.naturalistWhisper}</p>
+                  </div>
+
+                  <div className="waveform-bars">
+                    <div className={`wave-bar ${isSpeaking ? 'speaking' : ''}`}></div>
+                    <div className={`wave-bar ${isSpeaking ? 'speaking' : ''}`}></div>
+                    <div className={`wave-bar ${isSpeaking ? 'speaking' : ''}`}></div>
+                    <div className={`wave-bar ${isSpeaking ? 'speaking' : ''}`}></div>
+                    <div className={`wave-bar ${isSpeaking ? 'speaking' : ''}`}></div>
+                  </div>
+                </div>
+
+                {/* Sensory Tactile Prompt (Get Off the Screen) */}
+                <div className="sensory-prompt-box">
+                  <div className="sensory-title">
+                    <Sparkles size={14} />
+                    <span>Sensory Field Prompt</span>
+                  </div>
+                  <p className="sensory-body">
+                    {detectionResult.species.sensoryPrompt}
+                  </p>
+                </div>
+
+                {/* Anti-Screen Auto-Sleep Countdown Bar */}
+                {sleepCountdown !== null && (
+                  <div className="sleep-countdown-container">
+                    <div className="sleep-timer-text">
+                      Screen sleeping in <strong>{sleepCountdown}s</strong> to preserve focus
+                    </div>
+                    <div className="sleep-actions-group">
+                      <button
+                        className="btn-secondary"
+                        onClick={() => {
+                          clearSleepCountdown();
+                          setAutoSleepEnabled(false);
+                        }}
+                      >
+                        Pause Auto-Sleep
+                      </button>
+                      <button
+                        className="btn-primary"
+                        onClick={enterTrailSleep}
+                      >
+                        Sleep Now
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Telemetry Row */}
+                <div className="telemetry-row">
+                  <div>
+                    <span>Confidence: {(detectionResult.confidence * 100).toFixed(1)}%</span>
+                    <span style={{ margin: '0 8px' }}>•</span>
+                    <span>{detectionResult.latencyMs}ms ({detectionResult.engine})</span>
+                  </div>
+                  <button
+                    id="log-observation-btn"
+                    className="btn-secondary"
+                    onClick={handleLogObservation}
+                  >
+                    + Log to Field Journal
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: SENSORY OUTDOOR QUESTS */}
+        {activeTab === 'quests' && (
+          <div className="quests-container" id="outdoor-quests-view">
+            <div style={{ marginBottom: '4px' }}>
+              <h2 style={{ fontSize: '1.25rem', color: '#ffffff', marginBottom: '4px' }}>
+                Sensory Micro-Expeditions
+              </h2>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                Auditory briefings. No doomscrolling. Listen, put the phone away, and explore.
+              </p>
+            </div>
+
+            {OUTDOOR_QUESTS.map((quest) => {
+              const isDone = completedQuests.includes(quest.id);
+              return (
+                <div key={quest.id} className="quest-card" id={`quest-card-${quest.id}`}>
+                  <div className="quest-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span
+                        className="quest-badge"
+                        style={{
+                          backgroundColor: `${quest.badgeColor}22`,
+                          color: quest.badgeColor,
+                          border: `1px solid ${quest.badgeColor}55`
+                        }}
+                      >
+                        {quest.timeEstimate}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>
+                        {quest.sensoryFocus}
+                      </span>
+                    </div>
+
+                    <button
+                      className="icon-btn"
+                      onClick={() => speakResult(quest.promptAudio)}
+                      title="Audio Guide Briefing"
+                    >
+                      <Volume2 size={16} />
+                    </button>
+                  </div>
+
+                  <h3 className="quest-title">{quest.title}</h3>
+                  <p style={{ fontSize: '0.84rem', color: '#cbd5e1' }}>{quest.challengeText}</p>
+
+                  <ul className="quest-instructions">
+                    {quest.instructions.map((step, idx) => (
+                      <li key={idx} className="quest-step-item">
+                        <span className="quest-step-number">{idx + 1}.</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="sensory-prompt-box" style={{ marginTop: '4px' }}>
+                    <div className="sensory-title">
+                      <Sparkles size={12} />
+                      <span>Reflection Cue</span>
+                    </div>
+                    <p className="sensory-body">{quest.reflectionPrompt}</p>
+                  </div>
+
+                  <div className="quest-action-row">
+                    <button
+                      className={`btn-primary ${isDone ? 'done' : ''}`}
+                      style={{
+                        flex: 1,
+                        backgroundColor: isDone ? '#059669' : 'var(--accent-mint)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                      onClick={() => toggleQuestComplete(quest.id)}
+                    >
+                      <CheckCircle2 size={16} />
+                      <span>{isDone ? "Completed! Touch Grass Streak +1" : "Mark Expedition Complete"}</span>
+                    </button>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => {
+                        speakResult(quest.promptAudio);
+                        enterTrailSleep();
+                      }}
+                      title="Speak audio and enter pocket sleep mode"
+                    >
+                      <Moon size={14} />
+                      <span>Pocket & Walk</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* TAB 3: LOCAL FIELD JOURNAL & EXPORT */}
+        {activeTab === 'journal' && (
+          <div className="journal-container" id="field-journal-view">
+            {/* Outdoor Stats */}
+            <div className="journal-stats-grid">
+              <div className="stat-card">
+                <div className="stat-value">{observations.length}</div>
+                <div className="stat-label">Species Logged</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">{outsideMinutes}m</div>
+                <div className="stat-label">Outside Time</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">{completedQuests.length}</div>
+                <div className="stat-label">Quests Done</div>
+              </div>
+            </div>
+
+            {/* Export Bar */}
+            <div className="journal-export-row">
+              <button
+                id="export-gpx-btn"
+                className="export-btn"
+                onClick={() => journalStorage.exportToGPX()}
+                title="Export GPS coordinates for Garmin, Apple Watch, or AllTrails"
+              >
+                <Download size={16} color="#4ade80" />
+                <span>Export GPX Trail File</span>
+              </button>
+
+              <button
+                id="export-markdown-btn"
+                className="export-btn"
+                onClick={() => journalStorage.exportToMarkdown()}
+                title="Export Field Journal Markdown Document"
+              >
+                <Download size={16} color="#38bdf8" />
+                <span>Export Field Journal (.md)</span>
+              </button>
+            </div>
+
+            {/* Observations List */}
+            <div className="journal-list">
+              {observations.map((obs) => (
+                <div key={obs.id} className="journal-item">
+                  <img
+                    src={obs.photoUrl}
+                    alt={obs.speciesName}
+                    className="journal-thumb"
+                  />
+                  <div className="journal-info">
+                    <h4 className="journal-name">{obs.speciesName}</h4>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      {obs.scientificName}
+                    </p>
+                    <p className="journal-date">
+                      {new Date(obs.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {obs.coordinates.lat.toFixed(4)}°N, {Math.abs(obs.coordinates.lon).toFixed(4)}°W
+                    </p>
+                    {obs.sensoryNote && (
+                      <p style={{ fontSize: '0.75rem', color: '#a7f3d0', marginTop: '4px' }}>
+                        "{obs.sensoryNote.slice(0, 90)}..."
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    className="icon-btn"
+                    onClick={() => {
+                      const updated = journalStorage.deleteObservation(obs.id);
+                      setObservations(updated);
+                    }}
+                    title="Remove observation"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* FULLSCREEN TRAIL SLEEP / OLED BATTERY SAVER MODE */}
+      {trailSleepActive && (
+        <div
+          className="trail-sleep-screen"
+          id="trail-sleep-overlay"
+          onClick={wakeFromTrailSleep}
+        >
+          <div className="sleep-breathing-ring">
+            <Leaf size={44} />
+          </div>
+
+          <h2 className="sleep-title">Trail Sleep Mode Active</h2>
+          <p className="sleep-sub">
+            Your display is resting. Keep your eyes on the trees, bird calls, and terrain around you.
+          </p>
+
+          <div className="sleep-telemetry">
+            <div>
+              <Clock size={14} style={{ display: 'inline', marginRight: '4px' }} />
+              <span>{outsideMinutes}m Outside</span>
+            </div>
+            <div>
+              <Compass size={14} style={{ display: 'inline', marginRight: '4px' }} />
+              <span>Alt {trailCoordinates.alt}m</span>
+            </div>
+          </div>
+
+          <div className="sleep-wake-prompt">
+            Tap screen anywhere to resume viewfinder
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: WHY OPEN SOURCE AI MATTERS */}
+      {showWhyOpenModal && (
+        <div className="modal-backdrop" onClick={() => setShowWhyOpenModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Why Open Innovation Matters</h2>
+              <button className="icon-btn" onClick={() => setShowWhyOpenModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5', marginBottom: '16px' }}>
+              Frontier models (GPT-4o, Gemini) live inside multi-billion dollar datacenters. When you hike into a valley, canyon, or national park, cell towers disappear — and cloud AI goes dark. If an assistant needs 5G to tell you what plant you are touching, it fails the outdoors.
+            </p>
+
+            <table className="comparison-table">
+              <thead>
+                <tr>
+                  <th>Capability</th>
+                  <th>Cloud AI (Closed)</th>
+                  <th>TrailWhisper (Open AI)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Remote Trail Autonomy</strong></td>
+                  <td>❌ Fails with zero signal</td>
+                  <td><strong>✅ 100% Edge Inference (WebGPU/WASM)</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Data & Location Privacy</strong></td>
+                  <td>❌ GPS/Photos sent to servers</td>
+                  <td><strong>✅ Zero Telemetry (Device Only)</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Operating Cost</strong></td>
+                  <td>❌ Per-token API billing</td>
+                  <td><strong>✅ $0.00 Forever</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Screen Time Philosophy</strong></td>
+                  <td>❌ Keeps you chatting</td>
+                  <td><strong>✅ Anti-screen: sleeps in 5 seconds</strong></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(74, 222, 128, 0.3)', borderRadius: '8px', padding: '12px', fontSize: '0.8rem', color: '#86efac' }}>
+              <strong>The "Touch Grass" Core:</strong> Open-source weights (SmolVLM, MobileNet, Hugging Face Transformers.js) make edge computing truly personal. We engineered this app so the screen is the shortest part of your day.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: AI MODEL LAB & LIVE BENCHMARK */}
+      {showAILabModal && (
+        <div className="modal-backdrop" onClick={() => setShowAILabModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Cpu size={22} color="#4ade80" />
+                <h2 className="modal-title">Edge AI Model Engine & Lab</h2>
+              </div>
+              <button className="icon-btn" onClick={() => setShowAILabModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5', marginBottom: '16px' }}>
+              Inspect and verify the open-weight neural model running locally on your hardware. 0 server API calls, 100% edge execution.
+            </p>
+
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', fontSize: '0.78rem' }}>
+                <div>
+                  <span style={{ color: 'var(--text-dim)', display: 'block' }}>MODEL ARCHITECTURE</span>
+                  <strong style={{ color: '#ffffff' }}>Vision Transformer (ViT)</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-dim)', display: 'block' }}>WEIGHT REPOSITORY</span>
+                  <strong style={{ color: '#ffffff' }}>Xenova/vit-base-patch16-224</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-dim)', display: 'block' }}>RUNTIME FRAMEWORK</span>
+                  <strong style={{ color: 'var(--accent-mint)' }}>@huggingface/transformers (v3)</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-dim)', display: 'block' }}>ACCELERATION HARDWARE</span>
+                  <strong style={{ color: 'var(--accent-amber)' }}>
+                    {engineStatus.hasWebGPU ? "WebGPU (Direct3D 12 / Vulkan)" : "WASM SIMD CPU"}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Live Benchmark Execution */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ fontSize: '0.95rem', color: '#ffffff' }}>Live On-Device Benchmark</h3>
+              <button
+                className="btn-primary"
+                onClick={runAIBenchmark}
+                disabled={isBenchmarking}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                {isBenchmarking ? <RotateCcw className="spin-animation" size={14} /> : <Zap size={14} />}
+                <span>{isBenchmarking ? "Computing Tensors..." : "Run Benchmark"}</span>
+              </button>
+            </div>
+
+            {benchmarkData && (
+              <div style={{ background: 'rgba(10, 22, 16, 0.9)', border: '1px solid var(--border-glow)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                  <span style={{ color: 'var(--accent-mint)' }}>Device: {benchmarkData.engine}</span>
+                  <span style={{ color: 'var(--accent-amber)' }}>Latency: {benchmarkData.inferenceDurationMs}ms</span>
+                </div>
+
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  Top-5 Neural Predictions:
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {benchmarkData.topPredictions.map((pred, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-mint)', width: '48px' }}>
+                        {(pred.score * 100).toFixed(1)}%
+                      </span>
+                      <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.max(4, pred.score * 100)}%`, height: '100%', background: 'var(--accent-mint)', borderRadius: '3px' }}></div>
+                      </div>
+                      <span style={{ color: '#cbd5e1', fontSize: '0.78rem' }}>{pred.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Standalone Terminal Test Code */}
+            <div style={{ background: 'var(--bg-darkest)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+              <div style={{ color: 'var(--accent-mint)', marginBottom: '4px' }}># Test model in your terminal via Node.js:</div>
+              <code style={{ color: '#ffffff' }}>npm run test:model</code>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

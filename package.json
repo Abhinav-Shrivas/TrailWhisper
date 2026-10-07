@@ -1,0 +1,29 @@
+{
+  "name": "trailwhisper-touch-grass",
+  "version": "1.0.0",
+  "description": "100% Offline Edge Nature Guide & Audio Naturalist powered by Open-Source AI (Transformers.js / WebGPU). Built for the Touch Grass challenge.",
+  "private": false,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test:model": "node test-model.js"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
+    "canvas-confetti": "^1.9.4",
+    "lucide-react": "^1.52.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.81.0",
+    "vite": "^8.3.0"
+  }
+}
