@@ -31,6 +31,7 @@ import confetti from 'canvas-confetti';
 import { TRAIL_TAXONOMY, PRESET_SPECIMENS } from './data/trailTaxonomy';
 import { OUTDOOR_QUESTS } from './data/quests';
 import { edgeAIService } from './services/edgeAI';
+import { gemmaService } from './services/gemmaService';
 import { speechService } from './services/speechService';
 import { journalStorage } from './services/journalStorage';
 
@@ -44,6 +45,11 @@ export default function App() {
   const [showAILabModal, setShowAILabModal] = useState(false);
   const [benchmarkData, setBenchmarkData] = useState(null);
   const [isBenchmarking, setIsBenchmarking] = useState(false);
+
+  // Gemma 2 Reasoning & Quests
+  const [questsList, setQuestsList] = useState(OUTDOOR_QUESTS);
+  const [gemmaInsight, setGemmaInsight] = useState(null);
+  const [isLoadingGemma, setIsLoadingGemma] = useState(false);
 
   // Viewfinder & Specimen State
   const [cameraActive, setCameraActive] = useState(false);
@@ -188,6 +194,7 @@ export default function App() {
     clearSleepCountdown();
 
     try {
+      setGemmaInsight(null);
       const result = await edgeAIService.identifySpecimen(imgSource, taxonomyHintId);
       setDetectionResult(result);
       speechService.triggerHaptic([60, 50, 90]);
@@ -261,6 +268,49 @@ export default function App() {
       console.error("Benchmark error:", err);
     } finally {
       setIsBenchmarking(false);
+    }
+  };
+
+  // Google Gemma 2 Reasoning Handlers
+  const handleAskGemma = async () => {
+    if (!detectionResult) return;
+    setIsLoadingGemma(true);
+    clearSleepCountdown();
+    try {
+      const res = await gemmaService.getEcologicalInsight(
+        detectionResult.species.id,
+        detectionResult.species.commonName
+      );
+      setGemmaInsight(res);
+      speechService.triggerHaptic([60, 40]);
+    } catch (err) {
+      console.error("Gemma error:", err);
+    } finally {
+      setIsLoadingGemma(false);
+    }
+  };
+
+  const handleGenerateGemmaQuest = async () => {
+    setIsLoadingGemma(true);
+    try {
+      const newQuest = await gemmaService.generateDynamicQuest(
+        detectionResult?.species,
+        outsideMinutes
+      );
+      setQuestsList(prev => [newQuest, ...prev]);
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.8 },
+        colors: ['#38bdf8', '#22c55e']
+      });
+      speechService.triggerHaptic([80, 80]);
+      speakResult(newQuest.promptAudio);
+      setActiveTab('quests');
+    } catch (e) {
+      console.error("Gemma quest error:", e);
+    } finally {
+      setIsLoadingGemma(false);
     }
   };
 
@@ -624,6 +674,60 @@ export default function App() {
                   </p>
                 </div>
 
+                {/* Google Gemma 2 Ecological Reasoning Card */}
+                <div style={{ background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '14px', padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Sparkles size={14} color="#38bdf8" />
+                      <span style={{ fontSize: '0.74rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#38bdf8' }}>
+                        Google Gemma 2 Ecological Reasoning
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>
+                      google/gemma-2-2b-it
+                    </span>
+                  </div>
+
+                  {gemmaInsight ? (
+                    <div>
+                      <p style={{ fontSize: '0.82rem', color: '#e0f2fe', lineHeight: '1.45', marginBottom: '10px' }}>
+                        {gemmaInsight.insight}
+                      </p>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          className="btn-secondary"
+                          style={{ fontSize: '0.72rem', padding: '5px 10px', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }}
+                          onClick={() => speakResult(gemmaInsight.insight)}
+                        >
+                          <Volume2 size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                          Read Voice
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          style={{ fontSize: '0.72rem', padding: '5px 10px', color: 'var(--accent-mint)', borderColor: 'rgba(74, 222, 128, 0.4)' }}
+                          onClick={handleGenerateGemmaQuest}
+                        >
+                          + Add to Quests
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        Analyze symbiotic networks & ecological food web
+                      </span>
+                      <button
+                        className="btn-primary"
+                        style={{ fontSize: '0.74rem', padding: '6px 12px', background: '#38bdf8', color: '#031726', fontWeight: '600' }}
+                        onClick={handleAskGemma}
+                        disabled={isLoadingGemma}
+                      >
+                        {isLoadingGemma ? "Reasoning..." : "Ask Gemma 2"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Anti-Screen Auto-Sleep Countdown Bar */}
                 {sleepCountdown !== null && (
                   <div className="sleep-countdown-container">
@@ -673,7 +777,7 @@ export default function App() {
         {/* TAB 2: SENSORY OUTDOOR QUESTS */}
         {activeTab === 'quests' && (
           <div className="quests-container" id="outdoor-quests-view">
-            <div style={{ marginBottom: '4px' }}>
+            <div style={{ marginBottom: '8px' }}>
               <h2 style={{ fontSize: '1.25rem', color: '#ffffff', marginBottom: '4px' }}>
                 Sensory Micro-Expeditions
               </h2>
@@ -682,7 +786,26 @@ export default function App() {
               </p>
             </div>
 
-            {OUTDOOR_QUESTS.map((quest) => {
+            {/* Google Gemma 2 Dynamic Quest Generator Banner */}
+            <div style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(15, 34, 24, 0.85))', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '14px', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={14} color="#38bdf8" />
+                  <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#ffffff' }}>Gemma 2 Dynamic Quest Generator</span>
+                </div>
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Generate real-time challenges tailored to your trail environment</span>
+              </div>
+              <button
+                className="btn-primary"
+                style={{ fontSize: '0.74rem', padding: '6px 12px', background: '#38bdf8', color: '#031726', fontWeight: '600' }}
+                onClick={handleGenerateGemmaQuest}
+                disabled={isLoadingGemma}
+              >
+                {isLoadingGemma ? "Synthesizing..." : "+ Generate Quest"}
+              </button>
+            </div>
+
+            {questsList.map((quest) => {
               const isDone = completedQuests.includes(quest.id);
               return (
                 <div key={quest.id} className="quest-card" id={`quest-card-${quest.id}`}>
@@ -956,16 +1079,16 @@ export default function App() {
             <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', fontSize: '0.78rem' }}>
                 <div>
-                  <span style={{ color: 'var(--text-dim)', display: 'block' }}>MODEL ARCHITECTURE</span>
-                  <strong style={{ color: '#ffffff' }}>Vision Transformer (ViT)</strong>
+                  <span style={{ color: 'var(--text-dim)', display: 'block' }}>VISION FOUNDATION</span>
+                  <strong style={{ color: '#ffffff' }}>ViT-Base-Patch16 (ONNX WebGPU)</strong>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-dim)', display: 'block' }}>WEIGHT REPOSITORY</span>
-                  <strong style={{ color: '#ffffff' }}>Xenova/vit-base-patch16-224</strong>
+                  <span style={{ color: 'var(--text-dim)', display: 'block' }}>REASONING BRAIN</span>
+                  <strong style={{ color: '#38bdf8' }}>Google Gemma 2 (google/gemma-2-2b-it)</strong>
                 </div>
                 <div>
                   <span style={{ color: 'var(--text-dim)', display: 'block' }}>RUNTIME FRAMEWORK</span>
-                  <strong style={{ color: 'var(--accent-mint)' }}>@huggingface/transformers (v3)</strong>
+                  <strong style={{ color: 'var(--accent-mint)' }}>@huggingface/transformers + Gemma 2</strong>
                 </div>
                 <div>
                   <span style={{ color: 'var(--text-dim)', display: 'block' }}>ACCELERATION HARDWARE</span>
@@ -1018,8 +1141,11 @@ export default function App() {
 
             {/* Standalone Terminal Test Code */}
             <div style={{ background: 'var(--bg-darkest)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-              <div style={{ color: 'var(--accent-mint)', marginBottom: '4px' }}># Test model in your terminal via Node.js:</div>
-              <code style={{ color: '#ffffff' }}>npm run test:model</code>
+              <div style={{ color: 'var(--accent-mint)', marginBottom: '4px' }}># Test open models in terminal via Node.js:</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', color: '#ffffff' }}>
+                <code>npm run test:model &nbsp;&nbsp;# Test Vision Transformer</code>
+                <code>npm run test:gemma &nbsp;&nbsp;# Test Google Gemma 2 Reasoning</code>
+              </div>
             </div>
           </div>
         </div>

@@ -10,7 +10,8 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:model": "node test-model.js"
+    "test:model": "node test-model.js",
+    "test:gemma": "node test-gemma.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.1",

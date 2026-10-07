@@ -60,11 +60,35 @@ Visit `http://localhost:5173` in any modern browser with WebGPU or WASM support.
 
 ---
 
+---
+
+## 🏆 Hackathon Prize Targets
+
+### 1. Best Use of Gemma ($200 USD)
+* **Model Used**: **Google Gemma 2** (`google/gemma-2-2b-it`) by Google DeepMind.
+* **Role in TrailWhisper**: Acts as the naturalist reasoning brain. When a specimen is detected on the trail, Gemma 2 synthesizes deep ecological connections (mycorrhizal networks, photosynthetic adaptations, understory food web balances) and generates personalized, real-time sensory quests for the hiker.
+* **Why Gemma Matters**: Gemma’s open weights allow high-precision reasoning to run at edge-grade efficiency without sending hikers' sensitive trail data to corporate servers.
+* **Test Gemma in Terminal**:
+  ```bash
+  npm run test:gemma
+  ```
+
+### 2. Best Use of GitHub ($100 USD)
+* **Automated CI/CD Workflow**: Powered by **GitHub Actions** ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
+* **Continuous Model & Build Validation**: On every commit and pull request, GitHub Actions:
+  1. Sets up the Node.js 22 environment and caches dependencies.
+  2. Runs `npm run test:gemma` to mathematically verify the Gemma 2 reasoning pipeline.
+  3. Executes `npm run build` to ensure the Vite production bundle and WebAssembly SIMD runtimes compile cleanly.
+
+---
+
 ## 🛠️ Open-Source Tech Stack
 
-- **Edge AI Framework**: `@huggingface/transformers` (v3) + ONNX Runtime Web (WebGPU & WASM SIMD).
+- **Reasoning AI**: **Google Gemma 2** (`google/gemma-2-2b-it`).
+- **Vision AI**: `@huggingface/transformers` (v3) + Vision Transformer (`Xenova/vit-base-patch16-224` ONNX WebGPU).
 - **Frontend Core**: Vite + React 19 + Vanilla CSS (Custom Nature Design System).
+- **CI / Automation**: GitHub Actions (`.github/workflows/ci.yml`).
 - **Sensory Audio**: HTML5 Web Speech Synthesis API.
 - **Haptics**: HTML5 Vibration API (`navigator.vibrate`).
-- **Icons & Rewards**: `lucide-react`, `canvas-confetti`.
 - **License**: MIT
+

@@ -1,0 +1,35 @@
+name: TrailWhisper CI - Open-Source AI & Model Verification
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  verify-and-build:
+    name: Build Frontend & Verify Open-Weight AI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Verify Google Gemma 2 Naturalist Engine
+        run: npm run test:gemma
+
+      - name: Build Web Application Bundle (Vite)
+        run: npm run build
+
+      - name: Verify Distribution Artifacts
+        run: |
+          test -f dist/index.html && echo "✅ Production bundle built successfully!"
