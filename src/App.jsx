@@ -32,7 +32,7 @@ import confetti from 'canvas-confetti';
 import { TRAIL_TAXONOMY, PRESET_SPECIMENS } from './data/trailTaxonomy';
 import { OUTDOOR_QUESTS } from './data/quests';
 import { edgeAIService } from './services/edgeAI';
-import { gemmaService } from './services/gemmaService';
+import { gemmaService, cleanMarkdownText } from './services/gemmaService';
 import { speechService } from './services/speechService';
 import { journalStorage } from './services/journalStorage';
 
@@ -804,7 +804,7 @@ export default function App() {
                         <span>{gemmaInsight.latencyMs}ms</span>
                       </div>
                       <p style={{ fontSize: '0.82rem', color: '#e0f2fe', lineHeight: '1.45', marginBottom: '10px' }}>
-                        {gemmaInsight.insight}
+                        {cleanMarkdownText(gemmaInsight.insight)}
                       </p>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
@@ -815,7 +815,7 @@ export default function App() {
                             color: isSpeaking && playingAudioId === 'gemma' ? '#fb7185' : '#38bdf8',
                             borderColor: isSpeaking && playingAudioId === 'gemma' ? 'rgba(244, 63, 94, 0.45)' : 'rgba(56, 189, 248, 0.4)'
                           }}
-                          onClick={() => speakResult(gemmaInsight.insight, 'gemma')}
+                          onClick={() => speakResult(cleanMarkdownText(gemmaInsight.insight), 'gemma')}
                         >
                           {isSpeaking && playingAudioId === 'gemma' ? (
                             <>

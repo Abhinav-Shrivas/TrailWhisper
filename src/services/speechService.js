@@ -23,7 +23,9 @@ export const speechService = {
       // Cancel previous playback
       synth.cancel();
 
-      const utterance = new SpeechSynthesisUtterance(text);
+      // Clean speech text of markdown symbols (*, #, _, `, etc.) so the voice speaks clean natural sentences
+      const cleanText = text.replace(/[*#`_~]/g, '').replace(/\s+/g, ' ').trim();
+      const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.rate = 0.92; // Deliberate, clear naturalist outdoor cadence
       utterance.pitch = 1.0;
 

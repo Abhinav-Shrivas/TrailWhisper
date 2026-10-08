@@ -106,10 +106,4 @@ When you open TrailWhisper at `http://localhost:5173`, it automatically detects 
 
 ---
 
-## 🏆 Hacktoberfest Prize Categories
-
-- **Core Challenge ("Touch Grass")**: Designed specifically to turn the screen off within seconds and immerse hikers in their natural surroundings.
-- **Best Use of Gemma**: Powered by Google Gemma 2 reasoning architecture, custom Modelfile persona, and distilled ecological field knowledge.
-- **Best Use of GitHub**: Automated GitHub Actions CI pipeline running model unit tests and production builds on every commit.
-
 

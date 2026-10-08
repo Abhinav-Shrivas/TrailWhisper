@@ -4,6 +4,35 @@
 const OLLAMA_DEFAULT_ENDPOINT = typeof window !== 'undefined' ? "/ollama" : "http://localhost:11434";
 const OLLAMA_DEFAULT_MODEL = "trailwhisper:latest";
 
+/**
+ * Strips markdown symbols (*, **, #, _, `, etc.) to ensure serene, human-friendly text
+ * for UI display and text-to-speech without technical formatting artifacts.
+ */
+export function cleanMarkdownText(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    // Remove markdown headers (# Title, ### Subtitle)
+    .replace(/^#+\s+/gm, '')
+    // Replace markdown bold & italics (**bold**, *italic*, __bold__, _italic_)
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    // Remove inline code ticks
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove markdown links [text](url) -> text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove any remaining stray asterisks, hashes, underscores, backticks, or tildes
+    .replace(/[*#`_~]/g, '')
+    // Strip bullet markers at start of lines
+    .replace(/^[\s*-]+\s+/gm, '')
+    // Strip leading/trailing quotation marks
+    .replace(/^["'“”]\s*|\s*["'“”]$/g, '')
+    // Normalize spaces and trim
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 const GEMMA_FIELD_KNOWLEDGE = {
   "white-oak": {
     ecologicalStory: "Quercus alba functions as a keystone organism. Its root exudates actively feed ectomycorrhizal fungal networks, which in turn channel phosphorus back to the tree. Its acorns contain lower tannin concentrations than red oaks, making them the primary winter caloric reserve for eastern wild turkeys, squirrels, and deer.",
@@ -183,12 +212,12 @@ Common Name: ${speciesName}
 Scientific Name: ${scientificName || "Species"}
 Category: ${category || "Wildlife"}
 
-Respond in this exact structured format:
+Respond strictly in clean, plain conversational text with NO markdown symbols (do NOT use asterisks **, *, hashtags #, or quotation marks):
 INSIGHT: (2 concise sentences on its ecological relationship and role in the ecosystem)
 QUEST: (One tactile/sensory prompt for a hiker to notice with their senses without looking at their phone)
 FOCUS: (2-3 words, e.g. Bark Texture, Leaf Veins, Wind Patterns)`;
 
-        const rawResponse = await this.callOllamaGenerate(prompt, "You are TrailWhisper, an outdoor naturalist AI powered by Google Gemma 2. Be poetic, scientifically accurate, and encourage sensory outdoor immersion.");
+        const rawResponse = await this.callOllamaGenerate(prompt, "You are TrailWhisper, an outdoor naturalist AI powered by Google Gemma 2. Be poetic, scientifically accurate, and encourage sensory outdoor immersion. Always provide clean conversational plain text without markdown asterisks or hashes.");
         const latencyMs = Math.round(performance.now() - startTime);
 
         // Parse structured response
@@ -196,14 +225,19 @@ FOCUS: (2-3 words, e.g. Bark Texture, Leaf Veins, Wind Patterns)`;
         let questTask = `Observe how ${speciesName} interacts with surrounding natural light, soil, or wind. Step back and listen quietly.`;
         let sensoryFocus = "Natural Immersion";
 
-        const insightMatch = rawResponse.match(/INSIGHT:\s*([\s\S]*?)(?=QUEST:|$)/i);
+        const insightMatch = rawResponse.match(/(?:\*\*|#+)?\s*INSIGHT:?\s*(?:\*\*)?\s*([\s\S]*?)(?=(?:\*\*|#+)?\s*QUEST:|$)/i);
         if (insightMatch) insightText = insightMatch[1].trim();
 
-        const questMatch = rawResponse.match(/QUEST:\s*([\s\S]*?)(?=FOCUS:|$)/i);
+        const questMatch = rawResponse.match(/(?:\*\*|#+)?\s*QUEST:?\s*(?:\*\*)?\s*([\s\S]*?)(?=(?:\*\*|#+)?\s*FOCUS:|$)/i);
         if (questMatch) questTask = questMatch[1].trim();
 
-        const focusMatch = rawResponse.match(/FOCUS:\s*([\s\S]*?)$/i);
+        const focusMatch = rawResponse.match(/(?:\*\*|#+)?\s*FOCUS:?\s*(?:\*\*)?\s*([\s\S]*?)$/i);
         if (focusMatch) sensoryFocus = focusMatch[1].trim();
+
+        // Strip any residual markdown asterisks, hashes, backticks, or outer quotes
+        insightText = cleanMarkdownText(insightText);
+        questTask = cleanMarkdownText(questTask);
+        sensoryFocus = cleanMarkdownText(sensoryFocus);
 
         return {
           source: `Local Ollama Bridge (${this.getOllamaModel()})`,
