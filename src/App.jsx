@@ -11,7 +11,6 @@ import {
   BookOpen,
   Leaf,
   CheckCircle2,
-  HelpCircle,
   X,
   Play,
   RotateCcw,
@@ -41,7 +40,6 @@ export default function App() {
   const [trailSleepActive, setTrailSleepActive] = useState(false);
   const [isSimulatedOffline, setIsSimulatedOffline] = useState(false);
   const [isDeviceOnline, setIsDeviceOnline] = useState(navigator.onLine);
-  const [showWhyOpenModal, setShowWhyOpenModal] = useState(false);
   const [showAILabModal, setShowAILabModal] = useState(false);
   const [benchmarkData, setBenchmarkData] = useState(null);
   const [isBenchmarking, setIsBenchmarking] = useState(false);
@@ -425,16 +423,6 @@ export default function App() {
             title="Inspect Open-Source AI Architecture & Benchmark"
           >
             <Cpu size={18} color="#4ade80" />
-          </button>
-
-          {/* Why Open Source Manifesto */}
-          <button
-            id="why-open-btn"
-            className="icon-btn"
-            onClick={() => setShowWhyOpenModal(true)}
-            title="Why Open-Source AI Matters"
-          >
-            <HelpCircle size={18} />
           </button>
         </div>
       </header>
@@ -1000,60 +988,6 @@ export default function App() {
 
           <div className="sleep-wake-prompt">
             Tap screen anywhere to resume viewfinder
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: WHY OPEN SOURCE AI MATTERS */}
-      {showWhyOpenModal && (
-        <div className="modal-backdrop" onClick={() => setShowWhyOpenModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Why Open Innovation Matters</h2>
-              <button className="icon-btn" onClick={() => setShowWhyOpenModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5', marginBottom: '16px' }}>
-              Frontier models (GPT-4o, Gemini) live inside multi-billion dollar datacenters. When you hike into a valley, canyon, or national park, cell towers disappear — and cloud AI goes dark. If an assistant needs 5G to tell you what plant you are touching, it fails the outdoors.
-            </p>
-
-            <table className="comparison-table">
-              <thead>
-                <tr>
-                  <th>Capability</th>
-                  <th>Cloud AI (Closed)</th>
-                  <th>TrailWhisper (Open AI)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>Remote Trail Autonomy</strong></td>
-                  <td>❌ Fails with zero signal</td>
-                  <td><strong>✅ 100% Edge Inference (WebGPU/WASM)</strong></td>
-                </tr>
-                <tr>
-                  <td><strong>Data & Location Privacy</strong></td>
-                  <td>❌ GPS/Photos sent to servers</td>
-                  <td><strong>✅ Zero Telemetry (Device Only)</strong></td>
-                </tr>
-                <tr>
-                  <td><strong>Operating Cost</strong></td>
-                  <td>❌ Per-token API billing</td>
-                  <td><strong>✅ $0.00 Forever</strong></td>
-                </tr>
-                <tr>
-                  <td><strong>Screen Time Philosophy</strong></td>
-                  <td>❌ Keeps you chatting</td>
-                  <td><strong>✅ Anti-screen: sleeps in 5 seconds</strong></td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(74, 222, 128, 0.3)', borderRadius: '8px', padding: '12px', fontSize: '0.8rem', color: '#86efac' }}>
-              <strong>The "Touch Grass" Core:</strong> Open-source weights (SmolVLM, MobileNet, Hugging Face Transformers.js) make edge computing truly personal. We engineered this app so the screen is the shortest part of your day.
-            </div>
           </div>
         </div>
       )}
