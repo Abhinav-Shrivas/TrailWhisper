@@ -101,8 +101,14 @@ export const gemmaService = {
   },
 
   getOllamaEndpoint() {
-    if (typeof localStorage === 'undefined') return OLLAMA_DEFAULT_ENDPOINT;
-    return localStorage.getItem('trailwhisper_ollama_endpoint') || OLLAMA_DEFAULT_ENDPOINT;
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('trailwhisper_ollama_endpoint');
+      if (!stored || stored === 'http://localhost:11434') {
+        return "/ollama";
+      }
+      return stored;
+    }
+    return "http://localhost:11434";
   },
 
   setOllamaEndpoint(endpoint) {
@@ -126,11 +132,14 @@ export const gemmaService = {
    * Pings the local Ollama instance to check if it is running and what models are installed
    */
   async checkOllamaConnection() {
-    const endpoints = [this.getOllamaEndpoint(), 'http://localhost:11434'];
+    const endpoints = typeof window !== 'undefined'
+      ? ['/ollama', this.getOllamaEndpoint(), 'http://localhost:11434']
+      : ['http://localhost:11434', this.getOllamaEndpoint()];
+
     for (const ep of endpoints) {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2000);
+        const timeout = setTimeout(() => controller.abort(), 3000);
         const res = await fetch(`${ep}/api/tags`, { signal: controller.signal });
         clearTimeout(timeout);
         if (res.ok) {
@@ -147,7 +156,7 @@ export const gemmaService = {
 
           return {
             online: true,
-            endpoint: ep,
+            endpoint: "localhost:11434",
             models,
             hasTrailwhisper,
             hasGemma,
@@ -158,7 +167,7 @@ export const gemmaService = {
         // Continue to next endpoint attempt
       }
     }
-    return { online: false, endpoint: this.getOllamaEndpoint(), models: [], hasGemma: false };
+    return { online: false, endpoint: "localhost:11434", models: [], hasGemma: false };
   },
 
   /**

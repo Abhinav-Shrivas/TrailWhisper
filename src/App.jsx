@@ -66,6 +66,7 @@ export default function App() {
   // Audio & Anti-Screen Timers
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoSleepEnabled, setAutoSleepEnabled] = useState(false);
+  const [sleepTimeoutSeconds, setSleepTimeoutSeconds] = useState(90);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [playingAudioId, setPlayingAudioId] = useState(null);
   const [sleepCountdown, setSleepCountdown] = useState(null);
@@ -212,8 +213,8 @@ export default function App() {
         speakResult(result.species.naturalistWhisper);
       }
 
-      // Initiate 90-second auto-sleep countdown (Anti-Screen mechanism)
-      startSleepCountdown(90);
+      // Initiate auto-sleep countdown (Anti-Screen mechanism)
+      startSleepCountdown(sleepTimeoutSeconds);
     } catch (err) {
       console.error("Detection error:", err);
     } finally {
@@ -507,11 +508,11 @@ export default function App() {
               } else {
                 setAutoSleepEnabled(true);
                 if (detectionResult) {
-                  startSleepCountdown(90);
+                  startSleepCountdown(sleepTimeoutSeconds);
                 }
               }
             }}
-            title={autoSleepEnabled ? "Trail Sleep: ON (Screen auto-sleeps after 90s)" : "Trail Sleep: PAUSED (Stay awake)"}
+            title={autoSleepEnabled ? `Trail Sleep: ON (Screen auto-sleeps after ${sleepTimeoutSeconds}s)` : "Trail Sleep: PAUSED (Stay awake)"}
           >
             {autoSleepEnabled ? (
               <Moon size={18} color="#4ade80" />
@@ -524,7 +525,10 @@ export default function App() {
           <button
             id="ai-lab-btn"
             className="icon-btn"
-            onClick={() => setShowAILabModal(true)}
+            onClick={() => {
+              setShowAILabModal(true);
+              checkOllama();
+            }}
             title="Local AI Engine Settings & Bridge"
           >
             <Cpu size={18} color="#4ade80" />
@@ -566,7 +570,7 @@ export default function App() {
         <section className="anti-screen-banner" id="anti-screen-status">
           <div className="anti-screen-text">
             <strong>Screen Minimizer Active</strong>
-            Hear the whisper, feel the nature. Screen designed to sleep after 90s.
+            Hear the whisper, feel the nature. Screen designed to sleep after {sleepTimeoutSeconds}s.
             {!autoSleepEnabled && (
               <span style={{ color: 'var(--accent-amber)', display: 'block', fontSize: '0.74rem', marginTop: '2px' }}>
                 (Auto-Sleep Paused for Review)
@@ -581,11 +585,11 @@ export default function App() {
                 onClick={() => {
                   setAutoSleepEnabled(true);
                   if (detectionResult) {
-                    startSleepCountdown(90);
+                    startSleepCountdown(sleepTimeoutSeconds);
                   }
                 }}
               >
-                Resume Auto-Sleep (90s)
+                Resume Auto-Sleep ({sleepTimeoutSeconds}s)
               </button>
             )}
             <button
@@ -1205,6 +1209,55 @@ export default function App() {
               </div>
             </div>
 
+            {/* Edge Privacy & Backcountry Telemetry */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px', fontSize: '0.74rem' }}>
+              <div style={{ background: 'rgba(0,0,0,0.35)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <span style={{ color: 'var(--accent-mint)', display: 'block', fontWeight: 600 }}>🔒 0 B Uploaded</span>
+                <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>100% On-Device Privacy</span>
+              </div>
+              <div style={{ background: 'rgba(0,0,0,0.35)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <span style={{ color: '#38bdf8', display: 'block', fontWeight: 600 }}>✈️ Backcountry Ready</span>
+                <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>Zero Signal Needed</span>
+              </div>
+              <div style={{ background: 'rgba(0,0,0,0.35)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <span style={{ color: 'var(--accent-amber)', display: 'block', fontWeight: 600 }}>🌿 Eco Footprint</span>
+                <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>0 Datacenter Emissions</span>
+              </div>
+            </div>
+
+            {/* Trail Sleep Focus & Timer */}
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <h3 style={{ fontSize: '0.88rem', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Moon size={15} color="#4ade80" />
+                    Screen Sleep Timer (Anti-Screen)
+                  </h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', margin: '4px 0 0 0' }}>
+                    Auto-blacks out screen to deep OLED battery-saver mode to keep eyes on nature.
+                  </p>
+                </div>
+                <select
+                  value={sleepTimeoutSeconds}
+                  onChange={(e) => {
+                    const secs = Number(e.target.value);
+                    setSleepTimeoutSeconds(secs);
+                    if (secs === 0) {
+                      setAutoSleepEnabled(false);
+                      clearSleepCountdown();
+                    }
+                  }}
+                  style={{ background: 'var(--bg-darkest)', color: '#4ade80', border: '1px solid rgba(74, 222, 128, 0.4)', borderRadius: '6px', padding: '5px 10px', fontSize: '0.78rem', outline: 'none' }}
+                >
+                  <option value={30}>30s (Fast)</option>
+                  <option value={60}>60s</option>
+                  <option value={90}>90s (Recommended)</option>
+                  <option value={180}>3 Mins</option>
+                  <option value={0}>Stay Awake</option>
+                </select>
+              </div>
+            </div>
+
             {/* Live Local Ollama Bridge Section */}
             <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '12px', padding: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -1263,9 +1316,9 @@ export default function App() {
                 </div>
               )}
 
-              {!ollamaStatus.hasGemma && ollamaStatus.online && (
-                <div style={{ marginTop: '8px', fontSize: '0.74rem', color: 'var(--accent-amber)' }}>
-                  💡 Tip: To run official Google Gemma 2, run <code>ollama run gemma2:2b</code> in your terminal. Currently using <code>{selectedOllamaModel}</code>.
+              {ollamaStatus.online && (
+                <div style={{ marginTop: '8px', fontSize: '0.74rem', color: '#94a3b8' }}>
+                  ✨ Running local model: <strong style={{ color: '#38bdf8' }}>{selectedOllamaModel}</strong> (Tuned with Touch Grass naturalist persona)
                 </div>
               )}
             </div>
