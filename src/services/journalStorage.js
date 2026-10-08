@@ -23,7 +23,7 @@ const DEFAULT_SAMPLE_LOGS = [
     confidence: 0.98,
     sensoryNote: "Admired the scarlet cap from 3 feet away. Noticed fine white gills underneath.",
     coordinates: { lat: 37.7701, lon: -122.4889, alt: 48 },
-    photoUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80"
+    photoUrl: "/specimens/fly_agaric.jpg"
   }
 ];
 

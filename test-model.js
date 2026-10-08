@@ -17,8 +17,8 @@ async function testModel() {
     const loadTime = Date.now() - startTime;
     console.log(`✅ Model successfully loaded into memory in ${loadTime}ms!`);
     
-    // Test on a sample trail specimen (Mushroom / Nature)
-    const testImageUrl = 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=400&q=80';
+    // Test on our local specimen (Fly Agaric Mushroom)
+    const testImageUrl = './public/specimens/fly_agaric.jpg';
     console.log(`\nRunning neural inference on specimen image...`);
     console.log(`Specimen URL: ${testImageUrl}`);
     

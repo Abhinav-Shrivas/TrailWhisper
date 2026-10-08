@@ -36,7 +36,7 @@ export const TRAIL_TAXONOMY = [
     habitat: "Coniferous pine litter and birch woodlands in autumn",
     keywords: ["mushroom", "fungus", "red", "toadstool", "spores", "cap", "agaric"],
     colorAccent: "#ef4444",
-    sampleImage: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80"
+    sampleImage: "/specimens/fly_agaric.jpg"
   },
   {
     id: "black-capped-chickadee",
@@ -195,7 +195,7 @@ export const PRESET_SPECIMENS = [
     id: "sample-shroom",
     label: "Forest Mushroom",
     taxonomyId: "fly-agaric",
-    previewUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80"
+    previewUrl: "/specimens/fly_agaric.jpg"
   },
   {
     id: "sample-chickadee",
