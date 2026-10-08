@@ -4,6 +4,7 @@ import {
   Volume2,
   VolumeX,
   Moon,
+  Sun,
   Compass,
   MapPin,
   Sparkles,
@@ -410,6 +411,31 @@ export default function App() {
             title={soundEnabled ? "Mute Naturalist Audio" : "Unmute Audio Whisper"}
           >
             {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
+
+          {/* Auto-Sleep / Trail Sleep Toggle */}
+          <button
+            id="auto-sleep-toggle-btn"
+            className="icon-btn"
+            style={{
+              borderColor: autoSleepEnabled ? 'rgba(74, 222, 128, 0.4)' : 'rgba(245, 158, 11, 0.4)',
+              background: autoSleepEnabled ? 'rgba(34, 197, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)'
+            }}
+            onClick={() => {
+              if (autoSleepEnabled) {
+                clearSleepCountdown();
+                setAutoSleepEnabled(false);
+              } else {
+                setAutoSleepEnabled(true);
+              }
+            }}
+            title={autoSleepEnabled ? "Trail Sleep: ON (Screen auto-sleeps after detection)" : "Trail Sleep: OFF (Stay awake)"}
+          >
+            {autoSleepEnabled ? (
+              <Moon size={18} color="#4ade80" />
+            ) : (
+              <Sun size={18} color="#f59e0b" />
+            )}
           </button>
 
           {/* AI Model Lab & Benchmark */}
