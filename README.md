@@ -1,5 +1,10 @@
 # 🌲 TrailWhisper — Offline Edge Nature Guide & Audio Naturalist
 
+[![CI Build Status](https://github.com/Abhinav-Shrivas/TrailWhisper/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Abhinav-Shrivas/TrailWhisper/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Edge AI](https://img.shields.io/badge/Edge%20AI-100%25%20On--Device-4ade80)](https://github.com/Abhinav-Shrivas/TrailWhisper)
+[![WebGPU](https://img.shields.io/badge/Hardware-WebGPU%20%2F%20WASM-38bdf8)](https://github.com/Abhinav-Shrivas/TrailWhisper)
+
 > **"Built with open-source edge AI to get people off their screens and into the wild."**
 
 ---
