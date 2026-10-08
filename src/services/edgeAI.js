@@ -121,7 +121,15 @@ export const edgeAIService = {
       }
     }
 
-    // 2. Try running full neural classification with Transformers.js if pipeline ready
+    // 2. Try running full neural classification with Transformers.js
+    if (!classifierPipeline && !modelLoadingPromise) {
+      try {
+        await this.preloadModel();
+      } catch (err) {
+        console.warn("Could not load neural pipeline on-demand, using offline heuristics:", err);
+      }
+    }
+
     if (classifierPipeline) {
       try {
         const results = await classifierPipeline(imageSource, { topk: 5 });
@@ -143,6 +151,37 @@ export const edgeAIService = {
             highestConfidence = Math.max(0.88, Math.min(0.99, res.score));
             break;
           }
+        }
+
+        // Dynamic synthesis for open-world wildlife/fauna (e.g. Lion, Tiger, Eagle, etc.)
+        if (!bestMatch && results && results.length > 0) {
+          const topPred = results[0];
+          const parts = topPred.label.split(',').map(s => s.trim());
+          const rawName = parts[0];
+          const commonName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+          const scientificSubtitle = parts.length > 1 ? parts.slice(1).join(', ') : "Wild Organism / Open Vision Model";
+
+          const isPredator = /lion|tiger|leopard|panther|cheetah|bear|wolf|coyote|hyena|cougar|puma/i.test(topPred.label);
+          const isFauna = /animal|cat|dog|mammal|carnivore|lion|tiger|deer|elk|moose|rabbit|squirrel|bird|fox/i.test(topPred.label) || isPredator;
+
+          bestMatch = {
+            id: `open-${rawName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+            commonName: commonName,
+            scientificName: scientificSubtitle,
+            category: isFauna ? "fauna" : "open-species",
+            categoryLabel: isPredator ? "Apex Wildlife / Predator" : (isFauna ? "Wild Fauna / Mammal" : "Open Edge Classification"),
+            safety: isPredator ? "danger" : "safe",
+            safetyLabel: isPredator ? "Apex Wildlife — Observe from Safe Distance" : "Wild Specimen (Open Classification)",
+            confidenceBase: topPred.score,
+            foliageRating: isPredator ? "Golden Tawny Fur / Stately Stance" : "Natural Feature",
+            naturalistWhisper: `A stunning sighting of a ${commonName}. While rare on standard local woodland trails, this wild creature commands total respect. Observe quietly from a distance and stay mindful of your surroundings.`,
+            sensoryPrompt: `Pause and observe without approaching. Listen closely to the ambient wind and natural soundscape. Notice the creature's posture and heightened sensory vigilance.`,
+            ecologicalRole: `Keystone wildlife species maintaining trophic equilibrium and ecological balance across its native territory.`,
+            habitat: `Natural wildlife territory and open plains/wilderness`,
+            keywords: [rawName.toLowerCase()],
+            colorAccent: isPredator ? "#f59e0b" : "#38bdf8"
+          };
+          highestConfidence = topPred.score;
         }
 
         if (!bestMatch) {

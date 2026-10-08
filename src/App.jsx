@@ -833,6 +833,26 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                {/* Raw Neural Model Predictions (when available from Vision Transformer) */}
+                {detectionResult.rawPredictions && detectionResult.rawPredictions.length > 0 && (
+                  <div style={{ marginTop: '12px', padding: '10px 12px', background: 'rgba(0, 0, 0, 0.35)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Vision Transformer Neural Rankings (ImageNet 1k)
+                      </span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--accent-mint)', fontFamily: 'var(--font-mono)' }}>
+                        Xenova/vit-base-patch16-224
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {detectionResult.rawPredictions.slice(0, 3).map((pred, i) => (
+                        <span key={i} style={{ fontSize: '0.73rem', background: 'rgba(74, 222, 128, 0.08)', border: '1px solid rgba(74, 222, 128, 0.25)', padding: '2px 8px', borderRadius: '6px', color: '#e2e8f0' }}>
+                          <strong style={{ color: 'var(--accent-mint)' }}>#{i + 1}</strong> {pred.label.split(',')[0]} ({(pred.score * 100).toFixed(1)}%)
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Telemetry Row */}
                 <div className="telemetry-row">
