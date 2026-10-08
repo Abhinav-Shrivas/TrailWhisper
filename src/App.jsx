@@ -51,6 +51,12 @@ export default function App() {
   const [gemmaInsight, setGemmaInsight] = useState(null);
   const [isLoadingGemma, setIsLoadingGemma] = useState(false);
 
+  // Live Local Ollama Bridge State
+  const [ollamaStatus, setOllamaStatus] = useState({ online: false, models: [], activeModel: 'gemma2:2b' });
+  const [ollamaEnabled, setOllamaEnabled] = useState(gemmaService.isOllamaEnabled());
+  const [selectedOllamaModel, setSelectedOllamaModel] = useState(gemmaService.getOllamaModel());
+  const [isCheckingOllama, setIsCheckingOllama] = useState(false);
+
   // Viewfinder & Specimen State
   const [cameraActive, setCameraActive] = useState(false);
   const [currentImage, setCurrentImage] = useState(PRESET_SPECIMENS[0].previewUrl);
@@ -90,6 +96,9 @@ export default function App() {
 
     // Fetch GPS coordinates
     journalStorage.getTrailCoordinates().then(setTrailCoordinates);
+
+    // Ping local Ollama daemon
+    checkOllama();
 
     // Outside timekeeper
     const timer = setInterval(() => {
@@ -296,6 +305,39 @@ export default function App() {
     }
   };
 
+  // Live Local Ollama Bridge Handlers
+  const checkOllama = async () => {
+    setIsCheckingOllama(true);
+    try {
+      const status = await gemmaService.checkOllamaConnection();
+      setOllamaStatus(status);
+      if (status.models && status.models.length > 0) {
+        if (!status.models.includes(selectedOllamaModel)) {
+          const preferred = status.models.find(m => m.includes('gemma')) || status.models[0];
+          setSelectedOllamaModel(preferred);
+          gemmaService.setOllamaModel(preferred);
+        }
+      }
+    } catch (e) {
+      console.warn("Ollama check error:", e);
+    } finally {
+      setIsCheckingOllama(false);
+    }
+  };
+
+  const handleToggleOllama = (enabled) => {
+    setOllamaEnabled(enabled);
+    gemmaService.setOllamaEnabled(enabled);
+    if (enabled) {
+      checkOllama();
+    }
+  };
+
+  const handleSelectOllamaModel = (model) => {
+    setSelectedOllamaModel(model);
+    gemmaService.setOllamaModel(model);
+  };
+
   // Google Gemma 2 Reasoning Handlers
   const handleAskGemma = async () => {
     if (!detectionResult) return;
@@ -304,7 +346,9 @@ export default function App() {
     try {
       const res = await gemmaService.getEcologicalInsight(
         detectionResult.species.id,
-        detectionResult.species.commonName
+        detectionResult.species.commonName,
+        detectionResult.species.scientificName,
+        detectionResult.species.categoryLabel
       );
       setGemmaInsight(res);
       speechService.triggerHaptic([60, 40]);
@@ -742,20 +786,39 @@ export default function App() {
 
                 {/* Google Gemma 2 Ecological Reasoning Card */}
                 <div style={{ background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '14px', padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Sparkles size={14} color="#38bdf8" />
                       <span style={{ fontSize: '0.74rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#38bdf8' }}>
-                        Google Gemma 2 Ecological Reasoning
+                        Google Gemma 2 Reasoning
                       </span>
                     </div>
-                    <span style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>
-                      google/gemma-2-2b-it
-                    </span>
+                    <button
+                      onClick={() => setShowAILabModal(true)}
+                      style={{
+                        fontSize: '0.68rem',
+                        fontFamily: 'var(--font-mono)',
+                        color: ollamaStatus.online && ollamaEnabled ? '#86efac' : 'var(--text-dim)',
+                        background: ollamaStatus.online && ollamaEnabled ? 'rgba(34, 197, 94, 0.15)' : 'rgba(0,0,0,0.3)',
+                        border: `1px solid ${ollamaStatus.online && ollamaEnabled ? 'rgba(74, 222, 128, 0.35)' : 'rgba(255,255,255,0.1)'}`,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                      title="Click to configure local Ollama Bridge in Model Lab"
+                    >
+                      {ollamaStatus.online && ollamaEnabled ? `🟢 Ollama: ${selectedOllamaModel}` : "⚪ Distilled Offline"}
+                    </button>
                   </div>
 
                   {gemmaInsight ? (
                     <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', fontSize: '0.7rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ color: gemmaInsight.isLiveLocal ? 'var(--accent-mint)' : '#94a3b8' }}>
+                          Source: {gemmaInsight.source}
+                        </span>
+                        <span>{gemmaInsight.latencyMs}ms</span>
+                      </div>
                       <p style={{ fontSize: '0.82rem', color: '#e0f2fe', lineHeight: '1.45', marginBottom: '10px' }}>
                         {gemmaInsight.insight}
                       </p>
@@ -1148,6 +1211,71 @@ export default function App() {
                   </strong>
                 </div>
               </div>
+            </div>
+
+            {/* Live Local Ollama Bridge Section */}
+            <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={16} color="#38bdf8" />
+                  <h3 style={{ fontSize: '0.92rem', color: '#ffffff', margin: 0 }}>Live Ollama Bridge (Gemma 2)</h3>
+                </div>
+                <button
+                  className="btn-secondary"
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '4px 10px',
+                    borderColor: ollamaEnabled ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)',
+                    color: ollamaEnabled ? '#4ade80' : 'var(--text-muted)'
+                  }}
+                  onClick={() => handleToggleOllama(!ollamaEnabled)}
+                >
+                  {ollamaEnabled ? "Bridge: ENABLED" : "Bridge: DISABLED"}
+                </button>
+              </div>
+
+              <p style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: '1.4', marginBottom: '10px' }}>
+                Connects directly to your local Ollama daemon for real, dynamic 2.6B neural reasoning. If offline or disabled, uses zero-cloud distilled field cache.
+              </p>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '8px', fontSize: '0.76rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: ollamaStatus.online ? '#22c55e' : '#94a3b8' }}></span>
+                  <span style={{ color: ollamaStatus.online ? '#86efac' : '#94a3b8' }}>
+                    {ollamaStatus.online ? `Connected: ${ollamaStatus.endpoint}` : "Ollama daemon not detected on localhost:11434"}
+                  </span>
+                </div>
+
+                <button
+                  className="btn-secondary"
+                  style={{ fontSize: '0.72rem', padding: '3px 8px' }}
+                  onClick={checkOllama}
+                  disabled={isCheckingOllama}
+                >
+                  {isCheckingOllama ? "Pinging..." : "Check Connection"}
+                </button>
+              </div>
+
+              {ollamaStatus.online && ollamaStatus.models.length > 0 && (
+                <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.78rem' }}>
+                  <span style={{ color: 'var(--text-dim)' }}>Select Active Model:</span>
+                  <select
+                    value={selectedOllamaModel}
+                    onChange={(e) => handleSelectOllamaModel(e.target.value)}
+                    style={{ background: 'var(--bg-darkest)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '6px', padding: '4px 8px', fontSize: '0.78rem', outline: 'none' }}
+                  >
+                    {ollamaStatus.models.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {!ollamaStatus.hasGemma && ollamaStatus.online && (
+                <div style={{ marginTop: '8px', fontSize: '0.74rem', color: 'var(--accent-amber)' }}>
+                  💡 Tip: To run official Google Gemma 2, run <code>ollama run gemma2:2b</code> in your terminal. Currently using <code>{selectedOllamaModel}</code>.
+                </div>
+              )}
             </div>
 
             {/* Live Benchmark Execution */}

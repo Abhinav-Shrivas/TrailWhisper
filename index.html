@@ -10,6 +10,23 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      const _origFetch = window.fetch;
+      window.fetch = async function(...args) {
+        const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '');
+        try {
+          const res = await _origFetch.apply(this, args);
+          const ct = res.headers.get('content-type') || '';
+          if (ct.includes('text/html') && !url.endsWith('.html') && url !== '/' && !url.includes('?html-proxy')) {
+            console.error('[VITE_HTML_TRAP] URL requested that returned HTML:', url, 'Full args:', args);
+          }
+          return res;
+        } catch (err) {
+          console.error('[FETCH_ERROR]', url, err);
+          throw err;
+        }
+      };
+    </script>
   </head>
   <body>
     <div id="root"></div>

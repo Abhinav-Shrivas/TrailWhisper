@@ -1,7 +1,19 @@
 // Edge AI Engine for TrailWhisper
 // Integrates Hugging Face Transformers.js (WebGPU/WASM) with an offline botanical taxonomy matcher.
 
+import { pipeline, env } from '@huggingface/transformers';
 import { TRAIL_TAXONOMY } from '../data/trailTaxonomy';
+
+// Crucial for browser SPAs: allowLocalModels must be false so Transformers.js fetches
+// open-weight ONNX models from Hugging Face CDN (cached locally via useBrowserCache for offline use).
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+env.cacheKey = 'transformers-cache-v3';
+
+// Clear legacy poisoned cache if present
+if (typeof caches !== 'undefined') {
+  caches.delete('transformers-cache').catch(() => {});
+}
 
 let classifierPipeline = null;
 let modelLoadingPromise = null;
@@ -26,42 +38,23 @@ export const edgeAIService = {
     const engine = isWebGPUSupported ? "WebGPU Hardware Tensor Accelerator" : "WebAssembly SIMD Runtime";
 
     if (!classifierPipeline) {
-      try {
-        await this.preloadModel(onProgress);
-      } catch (e) {
-        console.warn("Using offline benchmark tensor simulation", e);
-      }
+      await this.preloadModel(onProgress);
+    }
+
+    if (!classifierPipeline) {
+      throw new Error("Neural model could not be loaded into WebGPU/WASM memory.");
     }
 
     const inferStart = performance.now();
-    let results = [];
-
-    if (classifierPipeline) {
-      try {
-        results = await classifierPipeline(sampleUrl, { topk: 5 });
-      } catch (e) {
-        console.warn("Pipeline infer error:", e);
-      }
-    }
-
-    if (!results || results.length === 0) {
-      results = [
-        { label: "agaric (Amanita muscaria)", score: 0.964 },
-        { label: "bolete / woodland mushroom", score: 0.021 },
-        { label: "forest floor / moss substrate", score: 0.008 },
-        { label: "bracket fungus / polypore", score: 0.004 },
-        { label: "coniferous leaf litter", score: 0.003 }
-      ];
-    }
-
-    const inferDuration = Math.round(performance.now() - inferStart + (isWebGPUSupported ? 52 : 115));
+    const results = await classifierPipeline(sampleUrl, { topk: 5 });
+    const inferDuration = Math.round(performance.now() - inferStart);
 
     return {
       engine,
       hasWebGPU: isWebGPUSupported,
       inferenceDurationMs: inferDuration,
       topPredictions: results,
-      modelId: "Xenova/vit-base-patch16-224",
+      modelId: "Xenova/vit-base-patch16-224 (Quantized ONNX)",
       openSourceLicense: "Apache 2.0 (Google ViT / Hugging Face)",
       isPureEdge: true
     };
@@ -73,14 +66,9 @@ export const edgeAIService = {
 
     modelLoadingPromise = (async () => {
       try {
-        const { pipeline, env } = await import('@huggingface/transformers');
-        
-        // Optimize for edge & offline cache
-        env.allowLocalModels = true;
-        env.useBrowserCache = true;
-
         const options = {
           device: isWebGPUSupported ? 'webgpu' : 'wasm',
+          quantized: true,
           progress_callback: (p) => {
             if (onProgress) onProgress(p);
           }
@@ -89,7 +77,7 @@ export const edgeAIService = {
         classifierPipeline = await pipeline('image-classification', 'Xenova/vit-base-patch16-224', options);
         return classifierPipeline;
       } catch (err) {
-        console.warn("Transformers.js WebGPU load failed or offline without cache. Using zero-latency offline heuristics.", err);
+        console.warn("Transformers.js model load failed:", err);
         return null;
       } finally {
         modelLoadingPromise = null;
@@ -106,38 +94,24 @@ export const edgeAIService = {
   async identifySpecimen(imageSource, taxonomyHintId = null) {
     const startTime = performance.now();
 
-    // 1. If explicit taxonomyHintId is supplied (e.g. from preset field test specimens)
-    if (taxonomyHintId) {
-      const match = TRAIL_TAXONOMY.find(item => item.id === taxonomyHintId);
-      if (match) {
-        const latency = Math.round(performance.now() - startTime + Math.random() * 25 + 45);
-        return {
-          species: match,
-          confidence: Number((match.confidenceBase - Math.random() * 0.04).toFixed(3)),
-          latencyMs: latency,
-          engine: isWebGPUSupported ? "WebGPU Edge Classifier" : "WASM Offline Core",
-          isOfflineAutonomous: true
-        };
-      }
-    }
-
-    // 2. Try running full neural classification with Transformers.js
+    // 1. Ensure neural pipeline is initialized
     if (!classifierPipeline && !modelLoadingPromise) {
       try {
         await this.preloadModel();
       } catch (err) {
-        console.warn("Could not load neural pipeline on-demand, using offline heuristics:", err);
+        console.warn("Could not load neural pipeline on-demand:", err);
       }
     }
 
+    // 2. Run real neural inference with Transformers.js when pipeline is ready
     if (classifierPipeline) {
       try {
         const results = await classifierPipeline(imageSource, { topk: 5 });
         const latency = Math.round(performance.now() - startTime);
 
-        // Find best match in our trail taxonomy based on labels
+        // Match against trail taxonomy using real predicted neural labels
         let bestMatch = null;
-        let highestConfidence = 0.85;
+        let highestConfidence = results[0]?.score || 0.85;
 
         for (const res of results) {
           const labelLower = res.label.toLowerCase();
@@ -204,13 +178,13 @@ export const edgeAIService = {
 
     // 3. Ultra-fast local client-side computer vision heuristics (dominant hue, saturation, entropy)
     const analyzedTaxonomy = await this.analyzeImagePixels(imageSource);
-    const latency = Math.round(performance.now() - startTime + 38);
+    const latency = Math.round(performance.now() - startTime);
 
     return {
       species: analyzedTaxonomy,
-      confidence: Number((analyzedTaxonomy.confidenceBase - Math.random() * 0.03).toFixed(3)),
+      confidence: Number(analyzedTaxonomy.confidenceBase.toFixed(3)),
       latencyMs: latency,
-      engine: "Edge Botanical Heuristic Matcher",
+      engine: "Offline Heuristic (Model Weights Standby)",
       isOfflineAutonomous: true
     };
   },
