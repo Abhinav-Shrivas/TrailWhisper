@@ -14,7 +14,7 @@ When you encounter an unfamiliar tree, mushroom, bird, or wildflower on a remote
 2. **Instant Edge AI Inference**: Powered 100% on-device by open-weight AI (WebGPU / Transformers.js).
 3. **Auditory Whisper**: Instead of reading paragraphs on a screen, a natural voice speaks a concise naturalist insight directly into your earphones.
 4. **Tactile Sensory Prompt**: You are invited to interact with nature physically (*"Touch the deeply furrowed bark," "Smell the crushed pine needles"*).
-5. **Auto-Sleep "Trail Mode"**: A 6-second countdown bar immediately blacks out the display to a deep OLED battery-saver mode with a gentle breathing ring. Your eyes return to the canopy.
+5. **Auto-Sleep "Trail Mode"**: A 90-second countdown bar blacks out the display to a deep OLED battery-saver mode with a gentle breathing ring (paused by default for inspection). Your eyes return to the canopy.
 
 ---
 

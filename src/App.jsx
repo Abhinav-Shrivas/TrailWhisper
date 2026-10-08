@@ -65,7 +65,7 @@ export default function App() {
 
   // Audio & Anti-Screen Timers
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [autoSleepEnabled, setAutoSleepEnabled] = useState(true);
+  const [autoSleepEnabled, setAutoSleepEnabled] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [playingAudioId, setPlayingAudioId] = useState(null);
   const [sleepCountdown, setSleepCountdown] = useState(null);
@@ -212,8 +212,8 @@ export default function App() {
         speakResult(result.species.naturalistWhisper);
       }
 
-      // Initiate 6-second auto-sleep countdown (Anti-Screen mechanism)
-      startSleepCountdown(6);
+      // Initiate 90-second auto-sleep countdown (Anti-Screen mechanism)
+      startSleepCountdown(90);
     } catch (err) {
       console.error("Detection error:", err);
     } finally {
@@ -506,9 +506,12 @@ export default function App() {
                 setAutoSleepEnabled(false);
               } else {
                 setAutoSleepEnabled(true);
+                if (detectionResult) {
+                  startSleepCountdown(90);
+                }
               }
             }}
-            title={autoSleepEnabled ? "Trail Sleep: ON (Screen auto-sleeps after detection)" : "Trail Sleep: OFF (Stay awake)"}
+            title={autoSleepEnabled ? "Trail Sleep: ON (Screen auto-sleeps after 90s)" : "Trail Sleep: PAUSED (Stay awake)"}
           >
             {autoSleepEnabled ? (
               <Moon size={18} color="#4ade80" />
@@ -563,7 +566,7 @@ export default function App() {
         <section className="anti-screen-banner" id="anti-screen-status">
           <div className="anti-screen-text">
             <strong>Screen Minimizer Active</strong>
-            Hear the whisper, feel the nature. Screen designed to sleep in seconds.
+            Hear the whisper, feel the nature. Screen designed to sleep after 90s.
             {!autoSleepEnabled && (
               <span style={{ color: 'var(--accent-amber)', display: 'block', fontSize: '0.74rem', marginTop: '2px' }}>
                 (Auto-Sleep Paused for Review)
@@ -575,9 +578,14 @@ export default function App() {
               <button
                 className="sleep-now-btn"
                 style={{ borderColor: 'rgba(245, 158, 11, 0.6)', color: 'var(--accent-amber)', background: 'rgba(245, 158, 11, 0.1)' }}
-                onClick={() => setAutoSleepEnabled(true)}
+                onClick={() => {
+                  setAutoSleepEnabled(true);
+                  if (detectionResult) {
+                    startSleepCountdown(90);
+                  }
+                }}
               >
-                Resume Auto-Sleep
+                Resume Auto-Sleep (90s)
               </button>
             )}
             <button
