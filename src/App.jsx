@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   X,
   Play,
+  Pause,
   RotateCcw,
   Wifi,
   WifiOff,
@@ -61,6 +62,7 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoSleepEnabled, setAutoSleepEnabled] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [playingAudioId, setPlayingAudioId] = useState(null);
   const [sleepCountdown, setSleepCountdown] = useState(null);
   const countdownIntervalRef = useRef(null);
 
@@ -211,13 +213,37 @@ export default function App() {
     }
   };
 
-  // Naturalist voice narration
-  const speakResult = (text) => {
+  // Naturalist voice narration with toggle/pause support
+  const speakResult = (text, audioId = 'whisper') => {
+    if (!text) return;
+
+    // If this specific audio is currently playing, clicking it pauses it!
+    if (isSpeaking && playingAudioId === audioId) {
+      pauseAudio();
+      return;
+    }
+
+    speechService.stop();
     setIsSpeaking(true);
+    setPlayingAudioId(audioId);
+
     speechService.speak(text, {
-      onEnd: () => setIsSpeaking(false),
-      onError: () => setIsSpeaking(false)
+      onEnd: () => {
+        setIsSpeaking(false);
+        setPlayingAudioId(null);
+      },
+      onError: () => {
+        setIsSpeaking(false);
+        setPlayingAudioId(null);
+      }
     });
+  };
+
+  // Pause / stop whatever voiceover is currently playing
+  const pauseAudio = () => {
+    speechService.stop();
+    setIsSpeaking(false);
+    setPlayingAudioId(null);
   };
 
   // Anti-Screen Sleep Countdown
@@ -399,6 +425,28 @@ export default function App() {
               </>
             )}
           </button>
+
+          {/* Active Voiceover Master Pause Pill */}
+          {isSpeaking && (
+            <button
+              id="pause-active-voice-btn"
+              className="offline-pill"
+              style={{
+                background: 'rgba(244, 63, 94, 0.16)',
+                borderColor: 'rgba(244, 63, 94, 0.45)',
+                color: '#fb7185',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+              onClick={pauseAudio}
+              title="Click to Pause Active Voiceover"
+            >
+              <Pause size={12} />
+              <span>PAUSE VOICE</span>
+            </button>
+          )}
 
           {/* Sound Mute Toggle */}
           <button
@@ -658,10 +706,14 @@ export default function App() {
                   <button
                     id="replay-whisper-btn"
                     className="play-voice-btn"
-                    onClick={() => speakResult(detectionResult.species.naturalistWhisper)}
-                    title="Play Naturalist Audio Whisper"
+                    style={{
+                      background: isSpeaking && playingAudioId === 'whisper' ? '#f43f5e' : 'var(--accent-mint)',
+                      color: isSpeaking && playingAudioId === 'whisper' ? '#ffffff' : 'var(--bg-darkest)'
+                    }}
+                    onClick={() => speakResult(detectionResult.species.naturalistWhisper, 'whisper')}
+                    title={isSpeaking && playingAudioId === 'whisper' ? "Pause Voiceover" : "Play Naturalist Audio Whisper"}
                   >
-                    {isSpeaking ? <RotateCcw size={20} /> : <Play size={20} />}
+                    {isSpeaking && playingAudioId === 'whisper' ? <Pause size={20} /> : <Play size={20} />}
                   </button>
 
                   <div className="audio-script-content">
@@ -710,11 +762,25 @@ export default function App() {
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
                           className="btn-secondary"
-                          style={{ fontSize: '0.72rem', padding: '5px 10px', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }}
-                          onClick={() => speakResult(gemmaInsight.insight)}
+                          style={{
+                            fontSize: '0.72rem',
+                            padding: '5px 10px',
+                            color: isSpeaking && playingAudioId === 'gemma' ? '#fb7185' : '#38bdf8',
+                            borderColor: isSpeaking && playingAudioId === 'gemma' ? 'rgba(244, 63, 94, 0.45)' : 'rgba(56, 189, 248, 0.4)'
+                          }}
+                          onClick={() => speakResult(gemmaInsight.insight, 'gemma')}
                         >
-                          <Volume2 size={12} style={{ display: 'inline', marginRight: '4px' }} />
-                          Read Voice
+                          {isSpeaking && playingAudioId === 'gemma' ? (
+                            <>
+                              <Pause size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                              Pause Voice
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                              Read Voice
+                            </>
+                          )}
                         </button>
                         <button
                           className="btn-secondary"
@@ -842,10 +908,15 @@ export default function App() {
 
                     <button
                       className="icon-btn"
-                      onClick={() => speakResult(quest.promptAudio)}
-                      title="Audio Guide Briefing"
+                      style={{
+                        borderColor: isSpeaking && playingAudioId === quest.id ? 'rgba(244, 63, 94, 0.45)' : 'var(--border-subtle)',
+                        background: isSpeaking && playingAudioId === quest.id ? 'rgba(244, 63, 94, 0.15)' : 'var(--bg-surface)',
+                        color: isSpeaking && playingAudioId === quest.id ? '#fb7185' : 'inherit'
+                      }}
+                      onClick={() => speakResult(quest.promptAudio, quest.id)}
+                      title={isSpeaking && playingAudioId === quest.id ? "Pause Audio Briefing" : "Audio Guide Briefing"}
                     >
-                      <Volume2 size={16} />
+                      {isSpeaking && playingAudioId === quest.id ? <Pause size={16} /> : <Volume2 size={16} />}
                     </button>
                   </div>
 

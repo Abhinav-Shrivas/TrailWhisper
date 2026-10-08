@@ -66,6 +66,22 @@ export const speechService = {
     }
   },
 
+  pause() {
+    if (this.isSupported() && synth.speaking) {
+      synth.pause();
+    }
+  },
+
+  resume() {
+    if (this.isSupported() && synth.paused) {
+      synth.resume();
+    }
+  },
+
+  isSpeaking() {
+    return this.isSupported() && Boolean(synth.speaking);
+  },
+
   triggerHaptic(pattern = [70, 40, 90]) {
     if (typeof window !== 'undefined' && 'navigator' in window && 'vibrate' in navigator) {
       try {
