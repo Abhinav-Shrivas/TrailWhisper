@@ -64,10 +64,52 @@ Visit `http://localhost:5173` in any modern browser with WebGPU or WASM support.
 
 ## 🛠️ Open-Source Tech Stack
 
-- **Reasoning AI**: **Google Gemma 2** (`google/gemma-2-2b-it`).
-- **Vision AI**: `@huggingface/transformers` (v3) + Vision Transformer (`Xenova/vit-base-patch16-224` ONNX WebGPU).
+- **Reasoning AI**: **Google Gemma 2** (`google/gemma-2-2b-it` / Custom Ollama Naturalist Model `trailwhisper`).
+- **Vision AI**: `@huggingface/transformers` + Vision Transformer (`Xenova/vit-base-patch16-224` ONNX WebGPU).
 - **Frontend Core**: Vite + React 19 + Vanilla CSS (Custom Nature Design System).
 - **CI / Automation**: GitHub Actions (`.github/workflows/ci.yml`).
 - **Sensory Audio**: HTML5 Web Speech Synthesis API.
 - **Haptics**: HTML5 Vibration API (`navigator.vibrate`).
+
+---
+
+## 🧪 Technical Verification & CLI Testing
+
+TrailWhisper includes automated test scripts to verify the open-source neural models directly in your terminal:
+
+```bash
+# 1. Test Open-Weight Vision Transformer (vit-base-patch16-224)
+npm run test:model
+
+# 2. Test Live Gemma 2 / Ollama Naturalist Reasoning
+npm run test:gemma
+
+# 3. Production Build Validation
+npm run build
+```
+
+---
+
+## 🦙 Custom Ollama Model Bridge (`Modelfile`)
+
+For live on-device 2.6B/3B neural generation, TrailWhisper connects directly to your local **Ollama** daemon with a custom prompt persona tuned specifically for the *Touch Grass* challenge:
+
+```bash
+# Build the custom naturalist model in Ollama
+ollama create trailwhisper -f Modelfile
+
+# Start your local daemon
+ollama run trailwhisper
+```
+
+When you open TrailWhisper at `http://localhost:5173`, it automatically detects your local `trailwhisper` daemon and streams dynamic ecological reasoning and tactile outdoor quests! When disconnected on a remote trail, it seamlessly falls back to the **Distilled Gemma 2 Field Cache** with zero network dependency.
+
+---
+
+## 🏆 Hacktoberfest Prize Categories
+
+- **Core Challenge ("Touch Grass")**: Designed specifically to turn the screen off within seconds and immerse hikers in their natural surroundings.
+- **Best Use of Gemma**: Powered by Google Gemma 2 reasoning architecture, custom Modelfile persona, and distilled ecological field knowledge.
+- **Best Use of GitHub**: Automated GitHub Actions CI pipeline running model unit tests and production builds on every commit.
+
 

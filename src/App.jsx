@@ -43,8 +43,7 @@ export default function App() {
   const [isSimulatedOffline, setIsSimulatedOffline] = useState(false);
   const [isDeviceOnline, setIsDeviceOnline] = useState(navigator.onLine);
   const [showAILabModal, setShowAILabModal] = useState(false);
-  const [benchmarkData, setBenchmarkData] = useState(null);
-  const [isBenchmarking, setIsBenchmarking] = useState(false);
+
 
   // Gemma 2 Reasoning & Quests
   const [questsList, setQuestsList] = useState(OUTDOOR_QUESTS);
@@ -292,18 +291,6 @@ export default function App() {
     speechService.triggerHaptic([50, 50]);
   };
 
-  // Run live on-device AI benchmark
-  const runAIBenchmark = async () => {
-    setIsBenchmarking(true);
-    try {
-      const data = await edgeAIService.benchmarkModel(currentImage);
-      setBenchmarkData(data);
-    } catch (err) {
-      console.error("Benchmark error:", err);
-    } finally {
-      setIsBenchmarking(false);
-    }
-  };
 
   // Live Local Ollama Bridge Handlers
   const checkOllama = async () => {
@@ -530,15 +517,12 @@ export default function App() {
             )}
           </button>
 
-          {/* AI Model Lab & Benchmark */}
+          {/* Edge AI Engine Settings & Bridge */}
           <button
             id="ai-lab-btn"
             className="icon-btn"
-            onClick={() => {
-              setShowAILabModal(true);
-              if (!benchmarkData) runAIBenchmark();
-            }}
-            title="Inspect Open-Source AI Architecture & Benchmark"
+            onClick={() => setShowAILabModal(true)}
+            title="Local AI Engine Settings & Bridge"
           >
             <Cpu size={18} color="#4ade80" />
           </button>
@@ -1172,14 +1156,14 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL: AI MODEL LAB & LIVE BENCHMARK */}
+      {/* MODAL: EDGE AI ENGINE SETTINGS & BRIDGE */}
       {showAILabModal && (
         <div className="modal-backdrop" onClick={() => setShowAILabModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Cpu size={22} color="#4ade80" />
-                <h2 className="modal-title">Edge AI Model Engine & Lab</h2>
+                <h2 className="modal-title">Edge AI Engine Settings</h2>
               </div>
               <button className="icon-btn" onClick={() => setShowAILabModal(false)}>
                 <X size={18} />
@@ -1187,7 +1171,7 @@ export default function App() {
             </div>
 
             <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5', marginBottom: '16px' }}>
-              Inspect and verify the open-weight neural model running locally on your hardware. 0 server API calls, 100% edge execution.
+              Inspect and configure local on-device neural models running privately on your hardware. 0 cloud server calls, 100% offline-ready.
             </p>
 
             <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
@@ -1198,11 +1182,11 @@ export default function App() {
                 </div>
                 <div>
                   <span style={{ color: 'var(--text-dim)', display: 'block' }}>REASONING BRAIN</span>
-                  <strong style={{ color: '#38bdf8' }}>Google Gemma 2 (google/gemma-2-2b-it)</strong>
+                  <strong style={{ color: '#38bdf8' }}>Google Gemma 2 (Naturalist Modelfile)</strong>
                 </div>
                 <div>
                   <span style={{ color: 'var(--text-dim)', display: 'block' }}>RUNTIME FRAMEWORK</span>
-                  <strong style={{ color: 'var(--accent-mint)' }}>@huggingface/transformers + Gemma 2</strong>
+                  <strong style={{ color: 'var(--accent-mint)' }}>@huggingface/transformers + Ollama</strong>
                 </div>
                 <div>
                   <span style={{ color: 'var(--text-dim)', display: 'block' }}>ACCELERATION HARDWARE</span>
@@ -1214,7 +1198,7 @@ export default function App() {
             </div>
 
             {/* Live Local Ollama Bridge Section */}
-            <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
+            <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '12px', padding: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Sparkles size={16} color="#38bdf8" />
@@ -1276,55 +1260,6 @@ export default function App() {
                   💡 Tip: To run official Google Gemma 2, run <code>ollama run gemma2:2b</code> in your terminal. Currently using <code>{selectedOllamaModel}</code>.
                 </div>
               )}
-            </div>
-
-            {/* Live Benchmark Execution */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 style={{ fontSize: '0.95rem', color: '#ffffff' }}>Live On-Device Benchmark</h3>
-              <button
-                className="btn-primary"
-                onClick={runAIBenchmark}
-                disabled={isBenchmarking}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                {isBenchmarking ? <RotateCcw className="spin-animation" size={14} /> : <Zap size={14} />}
-                <span>{isBenchmarking ? "Computing Tensors..." : "Run Benchmark"}</span>
-              </button>
-            </div>
-
-            {benchmarkData && (
-              <div style={{ background: 'rgba(10, 22, 16, 0.9)', border: '1px solid var(--border-glow)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                  <span style={{ color: 'var(--accent-mint)' }}>Device: {benchmarkData.engine}</span>
-                  <span style={{ color: 'var(--accent-amber)' }}>Latency: {benchmarkData.inferenceDurationMs}ms</span>
-                </div>
-
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: '6px' }}>
-                  Top-5 Neural Predictions:
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {benchmarkData.topPredictions.map((pred, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem' }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-mint)', width: '48px' }}>
-                        {(pred.score * 100).toFixed(1)}%
-                      </span>
-                      <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ width: `${Math.max(4, pred.score * 100)}%`, height: '100%', background: 'var(--accent-mint)', borderRadius: '3px' }}></div>
-                      </div>
-                      <span style={{ color: '#cbd5e1', fontSize: '0.78rem' }}>{pred.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Standalone Terminal Test Code */}
-            <div style={{ background: 'var(--bg-darkest)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-              <div style={{ color: 'var(--accent-mint)', marginBottom: '4px' }}># Test open models in terminal via Node.js:</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', color: '#ffffff' }}>
-                <code>npm run test:model &nbsp;&nbsp;# Test Vision Transformer</code>
-                <code>npm run test:gemma &nbsp;&nbsp;# Test Google Gemma 2 Reasoning</code>
-              </div>
             </div>
           </div>
         </div>
