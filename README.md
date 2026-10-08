@@ -1,44 +1,57 @@
 # 🌲 TrailWhisper — Offline Edge Nature Guide & Audio Naturalist
 
-> **"Built with open-source AI at its core to get people off the screen and into the wild."**  
-> *Touch Grass Challenge — Open Source AI Build*
+> **"Built with open-source edge AI to get people off their screens and into the wild."**
 
 ---
 
 ## 🍃 The Philosophy: "Make the Screen the Shortest Part of the Experience"
 
-Most AI applications are designed to maximize your time looking at a screen. **TrailWhisper is designed to turn itself off.**
+Most AI applications are designed to maximize user screen time. **TrailWhisper is designed to turn itself off.**
 
 When you encounter an unfamiliar tree, mushroom, bird, or wildflower on a remote trail:
-1. **Quick Capture (< 2 seconds)**: Point your camera or choose a specimen.
-2. **Instant Edge AI Inference**: Powered 100% on-device by open-weight AI (WebGPU / Transformers.js).
-3. **Auditory Whisper**: Instead of reading paragraphs on a screen, a natural voice speaks a concise naturalist insight directly into your earphones.
+1. **Quick Capture (< 2 seconds)**: Point your camera or select a specimen.
+2. **Instant Edge AI Inference**: Powered 100% on-device by open-weight AI (Vision Transformer + WebGPU).
+3. **Auditory Whisper**: Instead of reading paragraphs on a screen, a natural voice speaks a concise ecological insight directly into your earphones.
 4. **Tactile Sensory Prompt**: You are invited to interact with nature physically (*"Touch the deeply furrowed bark," "Smell the crushed pine needles"*).
-5. **Auto-Sleep "Trail Mode"**: A 90-second countdown bar blacks out the display to a deep OLED battery-saver mode with a gentle breathing ring (paused by default for inspection). Your eyes return to the canopy.
+5. **Screen Sleep Minimizer**: An automatic countdown timer dims the display into a deep OLED battery-saver mode with a gentle breathing ring. Your eyes return to the forest canopy.
 
 ---
 
-## 🌐 Why Open Innovation Matters (The Submission Story)
+## 🌐 Why Open-Source Edge AI Matters
 
 ### 1. Zero Cell Signal in the Backcountry
-Frontier models like GPT-4o or Gemini live in multi-billion dollar datacenters. When you hike into a valley, canyon, or national park, cell towers disappear — and cloud AI goes completely dark. If an assistant requires 5 bars of 5G to identify a poisonous berry, it fails the outdoors. By running open weights locally via **Transformers.js and WebGPU/WASM**, TrailWhisper operates in Airplane Mode with 0 bytes sent over the wire.
+Frontier cloud models live in centralized datacenters. When you hike into a valley, canyon, or remote trail, cell towers disappear — and cloud AI goes completely dark. TrailWhisper runs open weights directly on the user's hardware via **WebGPU and WASM**, operating seamlessly in Airplane Mode with 0 bytes sent over the wire.
 
-### 2. Complete Location & Image Privacy
-Trails and field foraging locations are sacred and sensitive. Closed APIs log your GPS coordinates and upload your photos to remote servers. TrailWhisper stores your field journal and waypoints exclusively in local `IndexedDB` on your device.
+### 2. Complete Location & Specimen Privacy
+Trails and foraging locations are sensitive and personal. Closed commercial apps log GPS coordinates and upload trail photos to remote cloud servers. TrailWhisper stores observations, waypoints, and images exclusively in local browser storage (`IndexedDB`) on your device.
 
-### 3. $0.00 Operating Cost
-No subscription fees, no API tokens, no corporate paywalls. It runs entirely on edge hardware.
+### 3. $0.00 Operating Cost & Zero Cloud Emissions
+No subscription fees, no API tokens, no corporate paywalls, and zero datacenter compute emissions. It runs entirely on client hardware.
 
 ---
 
 ## ✨ Core Features
 
-- 🌿 **100% Offline Edge Vision Engine**: Real-time species classification using WebGPU-accelerated open-weight models and botanical taxonomy heuristics.
-- 🎙️ **Audio-First Naturalist Narration**: Crisp auditory briefings for eyes-up hiking.
-- 🌙 **Trail Sleep Battery Saver**: Fullscreen pitch-black OLED sleep mode with an ambient breathing ring and outdoor timekeeper.
-- 🧭 **Sensory "Touch Grass" Quests**: Guided micro-expeditions designed around touch, hearing, and smell (*Tactile Texture Trio*, *Canopy Bioacoustic Bath*, *Chlorophyll Gradient*).
-- 📍 **GPS Field Journal & GPX Exporter**: Logs observations with local GPS coordinates and exports directly to `.gpx` (compatible with Garmin, Apple Watch, Strava, and AllTrails) and formatted `.md` notebooks.
+- 🌿 **100% Offline Edge Vision Engine**: Real-time species identification using WebGPU-accelerated open-weight Vision Transformer (`Xenova/vit-base-patch16-224`) and botanical taxonomy heuristics.
+- 🔷 **Google Gemma 2 Naturalist Reasoning**: Deep ecological reasoning and habitat story generation powered by Google Gemma 2 (`google/gemma-2-2b-it`) via a local Ollama bridge, backed by an offline distilled field cache.
+- 🎙️ **Audio-First Narration**: Crisp auditory briefings powered by Web Speech Synthesis with automatic markdown symbol sanitization for eyes-up hiking.
+- 🌙 **Configurable Screen Sleep Timer**: Fullscreen pitch-black OLED sleep mode with an ambient breathing ring. Includes a customizable timer (30s, 60s, 90s, 3 minutes, or stay awake; paused by default for inspection).
+- 🧭 **Sensory Outdoor Quests**: Guided micro-expeditions designed around touch, hearing, and smell (*Tactile Texture Trio*, *Canopy Bioacoustic Bath*, *Chlorophyll Gradient*).
+- 📍 **GPS Field Journal & GPX Exporter**: Logs sightings with local GPS coordinates and exports directly to `.gpx` (compatible with Garmin, Apple Watch, Strava, and AllTrails) and formatted `.md` field notebooks.
+- ⚙️ **Edge AI Engine Settings Modal**: Real-time inspection of hardware acceleration (WebGPU Direct3D 12/Vulkan vs. WASM SIMD CPU), local Ollama bridge status, active model selector, and edge privacy telemetry.
 - ✈️ **Trail Airplane Simulator**: Real-time toggle demonstrating zero network dependence.
+
+---
+
+## 🛠️ Open-Source Tech Stack
+
+- **Reasoning AI**: **Google Gemma 2** (`google/gemma-2-2b-it` / Custom Ollama Naturalist Model `trailwhisper`).
+- **Vision AI**: `@huggingface/transformers` + Vision Transformer (`Xenova/vit-base-patch16-224` ONNX WebGPU).
+- **Frontend Core**: Vite + React 19 + Vanilla CSS (Custom Nature Design System).
+- **Sensory Audio**: HTML5 Web Speech Synthesis API (Sanitized Natural Language).
+- **Haptics**: HTML5 Vibration API (`navigator.vibrate`).
+- **Geo & Navigation**: HTML5 Geolocation API + GPX 1.1 XML Schema Exporter.
+- **CI / Automation**: GitHub Actions (`.github/workflows/ci.yml`).
 
 ---
 
@@ -46,8 +59,8 @@ No subscription fees, no API tokens, no corporate paywalls. It runs entirely on 
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/touch-grass.git
-cd touch-grass
+git clone https://github.com/Abhinav-Shrivas/TrailWhisper.git
+cd TrailWhisper
 
 # Install dependencies
 npm install
@@ -57,19 +70,6 @@ npm run dev
 ```
 
 Visit `http://localhost:5173` in any modern browser with WebGPU or WASM support.
-
----
-
----
-
-## 🛠️ Open-Source Tech Stack
-
-- **Reasoning AI**: **Google Gemma 2** (`google/gemma-2-2b-it` / Custom Ollama Naturalist Model `trailwhisper`).
-- **Vision AI**: `@huggingface/transformers` + Vision Transformer (`Xenova/vit-base-patch16-224` ONNX WebGPU).
-- **Frontend Core**: Vite + React 19 + Vanilla CSS (Custom Nature Design System).
-- **CI / Automation**: GitHub Actions (`.github/workflows/ci.yml`).
-- **Sensory Audio**: HTML5 Web Speech Synthesis API.
-- **Haptics**: HTML5 Vibration API (`navigator.vibrate`).
 
 ---
 
@@ -92,7 +92,7 @@ npm run build
 
 ## 🦙 Custom Ollama Model Bridge (`Modelfile`)
 
-For live on-device 2.6B/3B neural generation, TrailWhisper connects directly to your local **Ollama** daemon with a custom prompt persona tuned specifically for the *Touch Grass* challenge:
+TrailWhisper connects directly to your local **Ollama** daemon for live on-device 2.6B neural generation with a custom prompt persona tuned for sensory outdoor immersion:
 
 ```bash
 # Build the custom naturalist model in Ollama
@@ -102,8 +102,4 @@ ollama create trailwhisper -f Modelfile
 ollama run trailwhisper
 ```
 
-When you open TrailWhisper at `http://localhost:5173`, it automatically detects your local `trailwhisper` daemon and streams dynamic ecological reasoning and tactile outdoor quests! When disconnected on a remote trail, it seamlessly falls back to the **Distilled Gemma 2 Field Cache** with zero network dependency.
-
----
-
-
+When you open TrailWhisper at `http://localhost:5173`, it automatically detects your local `trailwhisper` daemon and streams dynamic ecological reasoning and tactile outdoor quests. When disconnected on a remote trail, it seamlessly falls back to the **Distilled Gemma 2 Field Cache** with zero network dependency.
