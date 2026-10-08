@@ -2,7 +2,7 @@
 // Connects to a real local Ollama instance (gemma2:2b) with an offline distilled field knowledge cache.
 
 const OLLAMA_DEFAULT_ENDPOINT = typeof window !== 'undefined' ? "/ollama" : "http://localhost:11434";
-const OLLAMA_DEFAULT_MODEL = "gemma2:2b";
+const OLLAMA_DEFAULT_MODEL = "trailwhisper:latest";
 
 const GEMMA_FIELD_KNOWLEDGE = {
   "white-oak": {
@@ -106,15 +106,23 @@ export const gemmaService = {
         clearTimeout(timeout);
         if (res.ok) {
           const data = await res.json();
-          const models = data?.models?.map(m => m.name) || [];
+          const allModels = data?.models?.map(m => m.name) || [];
+          // Filter out unrelated models like mailscope
+          const models = allModels.filter(m => !m.toLowerCase().includes('mailscope'));
           const targetModel = this.getOllamaModel();
-          const hasTarget = models.some(m => m.includes('gemma'));
+          const hasTrailwhisper = models.some(m => m.includes('trailwhisper'));
+          const hasGemma = models.some(m => m.includes('gemma'));
+          const activeModel = hasTrailwhisper 
+            ? (models.find(m => m.includes('trailwhisper')) || 'trailwhisper:latest')
+            : (hasGemma ? models.find(m => m.includes('gemma')) : (models[0] || 'trailwhisper:latest'));
+
           return {
             online: true,
             endpoint: ep,
             models,
-            hasGemma: hasTarget,
-            activeModel: hasTarget ? (models.find(m => m.includes('gemma')) || targetModel) : targetModel
+            hasTrailwhisper,
+            hasGemma,
+            activeModel
           };
         }
       } catch (e) {
@@ -133,7 +141,7 @@ export const gemmaService = {
     const url = `${endpoint}/api/generate`;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort(), 35000);
 
     const res = await fetch(url, {
       method: 'POST',
